@@ -30,5 +30,10 @@ conda env export --no-builds | grep -v "prefix" > environment.yml
 * `grep -v "prefix"`: this hides the `prefix` portion of the YAML file that lists the directory for where your miniconda environments are housed. This is likely to be different from one computer to the next, so it is not necessary, and hides full path information if you are working in data-sensitive environments.
 
 ## Folders
+
+### `notebooks`
+* `rs_imagery`: remote sensing image files
+* `mnist`: the original MNIST dataset stored in CVS format
+
 ### `notebooks`
 All Jupyter Notebook demos are located here, alongside all of the processing and plotting methods used in a folder called `utils/`.
