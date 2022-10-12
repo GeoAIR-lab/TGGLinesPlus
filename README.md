@@ -31,7 +31,4 @@ conda env export --no-builds | grep -v "prefix" > environment.yml
 
 ## Folders
 ### `notebooks`
-All Jupyter Notebook demos should go here  
-
-### `scripts`
-Helper utility files
+All Jupyter Notebook demos are located here, alongside all of the processing and plotting methods used in a folder called `utils/`.
