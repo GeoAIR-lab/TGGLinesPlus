@@ -1,0 +1,11 @@
+name: skeleton_graph
+channels:
+- conda-forge
+- anaconda
+dependencies:
+- ipython
+- ipykernel
+- matplotlib
+- notebook
+- scikit-learn
+- opencv
