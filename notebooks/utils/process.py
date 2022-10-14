@@ -220,7 +220,6 @@ def get_node_degree(pixel_values_list):
     
     Returns:
         degree of node (how many connections it *should* have, not what it *does* have)
-    
     """
     # we do not want to include the center pixel (node) in our sum
     return [np.sum(sub_list[1:]) for sub_list in pixel_values_list]
@@ -315,15 +314,50 @@ def degree_to_node_type(degree):
     return node_type
 
 
+def get_unique_cliques(graph, junction_locations):
+        """
+        Get cliques from a NetworkX subgraph built with the junction nodes in junctions_list
+        
+        Parameters:
+            graph: a NetworkX graph
+
+            junction_locations: a list of nodes in input graph that have 3+ connections
+
+        Returns:
+            cliques: a list of cliques resulting from calling nx.find_cliques(graph, nodes=[...]) on every node in junction_locations
+
+            unique_cliques: a unique set of cliques where duplicateshave been removed from cliques
+        """
+        # find cliques and flatten list of lists returned by NetworkX
+        cliques = [list(nx.find_cliques(graph, nodes=[junction])) for junction in junction_locations]
+        cliques = flatten_list(cliques)
+        cliques = [sorted(sublist) for sublist in cliques]
+        
+        # now find unique cliques (there are many repeats due to clique-triangle permuations, i.e., [3, 4, 5], [3, 5, 4], [4, 3, 5], etc.)
+        cliques_set = list(set([tuple(clique) for clique in cliques]))
+        unique_cliques = sorted([list(clique_tuple) for clique_tuple in cliques_set])
+
+        return cliques, unique_cliques
+
+
 def get_node_combinations(clique):
     """
-    We are assuming that cliques are of length 3.
+    Given a clique containing 3 nodes, create all combinations between them.
+   
+    NOTE: we are assuming that cliques have been filtered to find those that are length 3 for this method.
     
     Example: given the clique [1, 2, 3], this method will return
     [[1, 2], [1, 3], [2, 3]]
+
+    Parameters:
+        clique: a clique resulting from calling nx.find_cliques(graph, nodes=[node]) on a single node
+                
+    Returns:
+        node_combinations: a list of lists, where each list is a combination of 2 nodes in a clique
     """
     node_combinations = sorted(list(set(itertools.combinations(clique, 2))))
     node_combinations = [list(combo) for combo in node_combinations]
+    
     return node_combinations
 
 
@@ -332,9 +366,9 @@ def get_path_weights(node_combinations, search_by_node):
     ...
     
     Parameters:
-        node_combinations:
+        node_combinations: a list of lists, where each list is a combination of 2 nodes in a clique
         
-        search_by_node:
+        search_by_node: a dictionary with nodes as keys and coordinates as values
         
     Returns:
         path_weights: a list of path weights for a combination of nodes in a clique of length 3
@@ -364,6 +398,7 @@ def get_path_weights(node_combinations, search_by_node):
     So we see only nodes that are horizontal or vertical from each other form a right triangle.
     """ 
     path_weights = [np.sqrt(np.sum(np.absolute(np.array(search_by_node[node_pair[0]]) - np.array(search_by_node[node_pair[1]])))) for node_pair in node_combinations]
+    
     return path_weights
 
 
@@ -372,15 +407,18 @@ def find_primary_junctions(clique, search_by_node):
     ..
     
     Parameters:
+        clique: a clique resulting from calling nx.find_cliques(graph, nodes=[node]) on a single node
+
+        search_by_node: a dictionary with nodes as keys and coordinates as values
     
     Returns:
-    
+        primary_junctions: junction nodes that form the base of a right triangle in a clique of length 3 (that is part of both a horiztonal and vertial edge)
     
     """
     # create a combination of 2 nodes, for the 3 node clique
     node_combinations = get_node_combinations(clique)
     
-    # get the path weight: 1 for horizontal/vertical, 1.414 for slanted
+    # get the path weight: 1 for horizontal/vertical, 1.414 for diagonal
     path_weights = get_path_weights(node_combinations, search_by_node)
     
     # find which paths are horizontal/vertical
@@ -389,40 +427,63 @@ def find_primary_junctions(clique, search_by_node):
 
     # the primary junction is the junction for which a vertical and horizontal edge meet
     primary_junctions = list(set.intersection(*horizontal_vertical_edges))[0]
+
     return primary_junctions
 
 
 def find_removable_edges(clique, search_by_node):
     """
-    ..
+    This method finds diagonal edges in cliques and returns them to be removed from a graph.
+    This method is important in being able to find which junction among adjacent junctions 
+    (two junctions connected that are side-by-side) to keep as primary junctions whe we segment
+    the paths in a graph.
+    
+    After removing edges and filtering adjacent junctions, we are able to segment a graph properly. Without doing this,
+    traversing these edges will cause problems with the algorithm (specifically: non-unique paths, paths that double back on themselves,
+    paths that skip edges, etc.).
     
     Parameters:
+        clique: a clique resulting from calling nx.find_cliques(graph, nodes=[node]) on a single node
+
+        search_by_node: a dictionary with nodes as keys and coordinates as values
     
     Returns:
-    
+        edges_to_remove: a list of edges to remove in a NetworkX graph
     
     """
     # create a combination of 2 nodes, for the 3 node clique
     node_combinations = get_node_combinations(clique)
     
-    # get the path weight: 1 for horizontal/vertical, 1.414 for slanted
+    # get the path weight: 1 for horizontal/vertical, 1.414 for diagonal
     path_weights = get_path_weights(node_combinations, search_by_node)
 
-    # find which paths are slanted, we will want to remove these
+    # find which paths are diagonal, we will want to remove these
     # if the path weight is not 1, the only other option is sqrt(2) = 1.414
-    s_indices = list(np.where(np.array(path_weights) != 1)[0])
+    diagonal_indices = list(np.where(np.array(path_weights) != 1)[0])
 
     # these are lists of tuples, because that is what the NetworkX method remove_edges_from() wants
     # https://networkx.org/documentation/stable/reference/classes/generated/networkx.Graph.remove_edges_from.html
-    edges_to_remove = [tuple(node_combinations[idx]) for idx in s_indices][0]
+    edges_to_remove = [tuple(node_combinations[idx]) for idx in diagonal_indices][0]
 
     return edges_to_remove
 
 
 def flatten_list(input_list):
     """
-    Return a list of lists with a flattened structure. Each element of
-    input_list is now a list, not itself a nested list.
+    Return a list of lists with a flattened structure. 
+    
+    NOTE: if you input a list of lists of lists, you will get back a list of lists.
+    However, if you input a list of lists, this will return a list (which can cause problems for other methods).
+
+    Parameters:
+        graph: a NetworkX graph
+        
+        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+
+    Returns:
+        a list with a flattened structure
+        
+    
     """
     return [val for sublist in input_list for val in sublist]
 
@@ -449,6 +510,7 @@ def get_initial_paths(graph, endpoints_list):
 
     # flatten list of lists of lists to list of lists
     initial_paths = flatten_list(initial_paths)
+
     return initial_paths
 
 
@@ -457,7 +519,7 @@ def shorten_path(path, endpoints_list):
     This method stops adding elements from path when it finds an element in junctions_list. In this way,
     each path will start and end with a primary junction node and have no primary junctions in between them.
     
-    Note, this method assumes that the first element is part of junctions_list, which is why we
+    NOTE: this method assumes that the first element is part of junctions_list, which is why we
     iterate through path[1:].
     
     Example:
@@ -465,21 +527,42 @@ def shorten_path(path, endpoints_list):
     The first element of path is in junctions_list ([3]), so we iterate from the element at index 1 until we find another element in junctions_list.
     [18], the last element in path is a junction, but so is [23] which comes before it. So we expect that this method will return
     [3, 4, 5, 6, 7, 10, 13, 16, 19, 21, 24, 23] so that the path only contains nodes between 1 starting and 1 ending node. 
+
+    Parameters:
+        path: a list of nodes in a NetworkX graph
+        
+        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+
+    Returns:
+        short_path: a (potentially) shortened list starting and ending with a primary node (and with no primary nodes between them)
     """
     # https://stackoverflow.com/questions/9572833/using-break-in-a-list-comprehension
+    # print("Path:")
+    # print(path)
+
     path_start = [path[0]]
     path_middle = list(itertools.takewhile(lambda x: x not in endpoints_list, path[1:]))
 
     # the list stops when it encounters a primary junction node
-    # so we want to add that to the end of the list
-    path_end_idx = np.where(np.array(path) == path_middle[-1])[0][0] + 1
-    path_end = [path[path_end_idx]]
+    # so we want to add that node to the end of the list
+    # there is a possibility that path[1] is also an endpoint, so if path_middle is [], we need to add path[1] as the end of the list
+    # (i.e., the path is 2 nodes long)
+    if (len(path_middle) == 0):
+        path_end = [path[1]]
+    else:
+        path_end_idx = np.where(np.array(path) == path_middle[-1])[0][0] + 1
+        path_end = [path[path_end_idx]]
+    
+    # print("Start: ", path_start)
+    # print("Middle: ", path_middle)
+    # print("End: ", path_end)
 
     short_path = path_start + path_middle + path_end
+    # print("Short path: ", short_path, '\n')
     return short_path
 
 
-def find_reversed_list(paths_list):
+def remove_reversed_list(paths_list):
     """
     In our case, there may be lists that are simply the reverse of each other.
     
@@ -489,6 +572,12 @@ def find_reversed_list(paths_list):
     Ex:
     [18, 15, 12, 9, 3] is just a reversal of [3, 9, 12, 15, 18]
     This method will find which list it finds first.
+
+    Parameters:        
+        paths_list: a list of lists, with each sublist containing a path of nodes in a NetworkX graph
+
+    Returns:
+        paths_list: a version of the input paths_list with any paths removed that are mirrors (reversals) of another path in paths_list
     """    
     for i, path in enumerate(paths_list):
         reversed_path = list(reversed(path))
@@ -496,79 +585,116 @@ def find_reversed_list(paths_list):
             paths_list.remove(reversed_path)
 
     paths_list = sorted(paths_list)
+
     return paths_list
+
+
+def segment_paths(graph, endpoints_list):
+    """
+    Segment a graph from given list of endpoints. Here, we define endpoints to be:
+    - terminal nodes
+    - junction nodes that we have found and filtered via different methods, primarily those that are
+        solo (form a T), that branch (form a Y), and that form the base of right triangles
+
+    Since NetworkX defines nodes in a graph from top to bottom, left to right, we take a sorted list (endpoints_list)
+    and create paths between pairs of nodes starting from least (top-left most) and ending with the highest (bottom-right most).
+    The goal is to get unique paths that span the graph, with each path starting and ending with a node in endpoints_list (continaing no
+    nodes in endpoints_list between them).
+
+    Parameters:
+        graph: a NetworkX graph
+        
+        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+
+    Returns:
+        final_paths_list: a list of lists containing unique paths in input graph
+    """
+    # initial_paths_list: a nested list of lists of paths between a start and end node
+    initial_paths_list = get_initial_paths(graph, endpoints_list)
+    # print("Initial paths:")
+    # print(initial_paths_list, "\n")
+
+    # shorten paths, remove duplicate lists, convert each path back to list type from type tuple
+    short_paths_list = sorted(list(set([tuple(shorten_path(path, endpoints_list)) for path in initial_paths_list])))
+    short_paths_list = [list(path) for path in short_paths_list]
+
+    # prevent path reversals from being included, e.g. [1, 2, 3] and not also [3, 2, 1]
+    final_paths_list = remove_reversed_list(short_paths_list)
+
+    return final_paths_list
     
 
 def TGGLinesPlus(image, connectivity=2):
     """
-    This method is currently designed for one image, though we could also design
-    it to work for lists of images. Alternatively, we can keep it how it is and let
-    users define a list comprehension on input images like: 
-        output_images = [padded_adjacency(image) for image in input_images]
+    This method is currently designed for one image, though it also works for lists of images. 
+    For instance, you can use a list comprehension on a list of input images like so: 
+        output_images = [TGGLinesPlus(image) for image in input_images]
 
     Parameters:
         image: the input image
 
         connectivity: an int value
             1 represents vertical and horizontal edges in a graph
-            2 represents horizontal, vertical, and slanted edges (full triangle: two lengs and the hypotenuse)
+            2 represents horizontal, vertical, and diagonal edges (full triangle: two lengs and the hypotenuse)
 
     Returns:
+        a dictionary of important values and objects generated during the method
 
-    """    
+    """
+    # set default values for variables that depend on the value of connectivity
+    neighbor_locations = None
+    neighbor_values = None
+    current_degrees = None
+
     # create binary image
     thresh = threshold_mean(image)
     binary = image > thresh
     
     # create skeleton, pad image
-    skeleton = skeletonize(binary)
-    
     # pad skeleton image AFTER thresholding, otherwise it can affect the resulting skeleton
+    skeleton = skeletonize(binary)
     skeleton = pad_image(skeleton)
 
     # then convert to scipy sparse array
     skeleton_array, skeleton_coords = create_skeleton_graph(skeleton, connectivity=connectivity)
 
     # create graph from scipy sparse array, get node locations and save as dict
-    skeleton_graph = nx.from_scipy_sparse_array(skeleton_array)
+    skeleton_graph_original = nx.from_scipy_sparse_array(skeleton_array)
     search_by_node, search_by_location = get_node_locations(skeleton_coords)
     
-    # find neighboring pixels and their values
-    neighbor_locations = [find_neighbors(pixel) for pixel in skeleton_coords]
-    neighbor_values = get_neighbor_values(neighbor_locations, skeleton)
+    if(connectivity == 1):
+        # if connectivity = 1, then skimage will only add vertical and horizontal edges to the graph
+        # so we need to find the diagonal edges and add them to our graph
 
-    # identify degree mismatch for each node in graph
-    # if degree mismatch exists, compile a list of each node where this is true in nx_graph
-    potential_degrees = get_node_degree(neighbor_values)
-    current_degrees = [val for (node, val) in skeleton_graph.degree()]
-    problem_nodes = list(np.where(np.array(potential_degrees) - np.array(current_degrees) != 0)[0])
+        # find neighboring pixels and their values
+        neighbor_locations = [find_neighbors(pixel) for pixel in skeleton_coords]
+        neighbor_values = get_neighbor_values(neighbor_locations, skeleton)
 
-    # find problem nodes
-    node_neighbors = node_in_neighbors(neighbor_locations, skeleton_coords)
-    problem_node_neighbor_idx = [node_neighbors[idx] for idx in problem_nodes]
+        # identify degree mismatch for each node in graph
+        # if degree mismatch exists, compile a list of each node where this is true in nx_graph
+        potential_degrees = get_node_degree(neighbor_values)
+        current_degrees = [val for (node, val) in skeleton_graph_original.degree()]
+        problem_nodes = list(np.where(np.array(potential_degrees) - np.array(current_degrees) != 0)[0])
 
-    # update any missing connections between neighboring nodes in nx_graph
-    skeleton_graph_updated = add_missing_connections(problem_nodes, problem_node_neighbor_idx, search_by_location, skeleton_graph)
+        # find problem nodes
+        node_neighbors = node_in_neighbors(neighbor_locations, skeleton_coords)
+        problem_node_neighbor_idx = [node_neighbors[idx] for idx in problem_nodes]
+
+        # update any missing connections between neighboring nodes in nx_graph
+        skeleton_graph_updated = add_missing_connections(problem_nodes, problem_node_neighbor_idx, search_by_location, skeleton_graph_original)
+    else:
+        skeleton_graph_updated = skeleton_graph_original
 
     # calculate final node degrees and node types from updated graph
     degrees = [val for (node, val) in skeleton_graph_updated.degree()]
     node_types = list(map(degree_to_node_type, degrees))
-    
-    # convert graph object back to scipy sparse array object for plotting
-    skeleton_array_updated = nx.to_scipy_sparse_array(skeleton_graph_updated)
 
-    # find cliques and primary junction nodes
+    # create NetworkX subgraph from junction nodes to find cliques
     junction_locations = list(np.where(np.array(node_types)=="J")[0])
     junction_subgraph = nx.subgraph(skeleton_graph_updated, nbunch=junction_locations)
-    
-    # find cliques and flatten list of lists returned by NetworkX
-    cliques = [list(nx.find_cliques(junction_subgraph, nodes=[junction])) for junction in junction_locations]
-    cliques = flatten_list(cliques)
-    cliques = [sorted(sublist) for sublist in cliques]
-    
-    # now find unique cliques (there are many repeats due to clique-triangle permuations, i.e., [3, 4, 5], [3, 5, 4], [4, 3, 5], etc.)
-    cliques_set = list(set([tuple(clique) for clique in cliques]))
-    unique_cliques = sorted([list(clique_tuple) for clique_tuple in cliques_set])
+
+    # find cliques and primary junction nodes
+    cliques, unique_cliques = get_unique_cliques(junction_subgraph, junction_locations)
 
     # from here, we want to find primary junctions, which are either:
     #   - solo junctions: a junction (by definition with 3+ connections) not connected to any other junctions
@@ -583,6 +709,10 @@ def TGGLinesPlus(image, connectivity=2):
     path_seg_graph = skeleton_graph_updated.copy()
     path_seg_graph.remove_edges_from(edges_to_remove)
 
+    # make sure that we successfully subtracted the right number of edges
+    num_edges = len(skeleton_graph_updated.edges()) - len(path_seg_graph.edges()) 
+    assert(num_edges == len(edges_to_remove))
+
      # AFTER we find cliques_3_right_triangles, we can find cliques_2_adjacent_nodes
     # after we remove edges, some nodes lose that edge and are no longer junctions (3+ connections)
     # we can ignore these nodes and only focus on "branching" nodes, or nodes that look like a Y (i.e., they become cliques_1_single_junction nodes)
@@ -590,12 +720,16 @@ def TGGLinesPlus(image, connectivity=2):
     adjacent_junctions_list = sorted(list(set(flatten_list(adjacent_junctions_list))))
     cliques_2_adjacent_junctions = [node for node in adjacent_junctions_list if len(path_seg_graph.edges(node)) >= 3]
 
-        # for path segmentation, we also want to include "terminal" end nodes
+    # for path segmentation, we also want to include "terminal" end nodes
     # the location in node_types is the same node number in graph
     end_nodes = list(np.where(np.array(node_types) == "E")[0])
 
     primary_junctions = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles)
     path_seg_endpoints = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles + end_nodes)
+    # print("Path segmentation endpoints: ")
+    # print(path_seg_endpoints)
+    #### path segmentation ####
+    paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
 
     # return the updated graph object and important info as dict
     return {
@@ -606,34 +740,32 @@ def TGGLinesPlus(image, connectivity=2):
         "cliques_3_right_triangles": cliques_3_right_triangles,
         "endpoints_path_seg": path_seg_endpoints,
         "junction_locations": junction_locations,
-        "junction_subgraph": junction_subgraph,
+        #"junction_subgraph": junction_subgraph,
         "junctions_primary": primary_junctions,
-        "neighbor_locations": neighbor_locations,
-        "neighbor_values": neighbor_values,
+        #"neighbor_locations": neighbor_locations,
+        #"neighbor_values": neighbor_values,
         "node_degrees": degrees,
-        "node_degrees_before_update": current_degrees,
+        #"node_degrees_before_update": current_degrees,
         "node_types": node_types,
         "nodes_terminal": end_nodes,
-        #"paths_list": paths_list,
+        "paths_list": paths_list,
         "removed_edges": edges_to_remove,
         "search_by_location": search_by_location,
         "search_by_node": search_by_node,
         "skeleton": skeleton,
-        "skeleton_array": skeleton_array_updated,
-        "skeleton_array_old": skeleton_array,
         "skeleton_coordinates": skeleton_coords,
         "skeleton_graph": skeleton_graph_updated,
-        "skeleton_graph_original": skeleton_graph,
+        "skeleton_graph_original": skeleton_graph_original,
         "skeleton_graph_path_seg": path_seg_graph,
     }
 
 
 def total_added_connections(result_dict_list):
     """
-    Returns the total number of connections added prior and post to running the processing method padded_adjacency()
+    Returns the total number of connections added prior and post to running the processing method TGGLinesPlus()
 
     Parameters:
-        result_dict_list: a list of result objects from calling padded_adjacency()
+        result_dict_list: a list of result objects from calling TGGLinesPlus()
 
     Returns:
         total_added: an int (0+) representing the number of connections added to a graph or list of graph objects
@@ -651,6 +783,8 @@ def merge_lists(lists, results=None):
     Merge lists containing one or more common elements.
     Source: # https://stackoverflow.com/questions/55348640/how-to-merge-lists-with-common-elements-in-a-list-of-lists
 
+    NOTE: this will result in <= len(lists), where an unsuccessful merge will return lists
+
     Parameters:
         lists: the lists that you want to try to merge
 
@@ -658,8 +792,6 @@ def merge_lists(lists, results=None):
 
     Returns:
         the input lists after merge
-
-        Note: this will result in <= len(lists), where an unsuccessful merge will return lists
 
     """
     if results is None:

@@ -11,7 +11,7 @@ import networkx as nx
 from utils.process import reverse_coordinates
 
 
-def plot_networkx_graph(skeleton, graph, coordinates, save_fig=False, save_dir="./", **kwargs):
+def plot_networkx_graph(skeleton, graph, coordinates, save_fig=False, save_dir="./", **kwargs) -> None:
     """
     Draw a NetworkX Graph object, with the option of overlaying it onto an image using Matplotlib's imshow() method.
     
@@ -51,7 +51,7 @@ def plot_networkx_graph(skeleton, graph, coordinates, save_fig=False, save_dir="
         plt.show()
 
 
-def display_updated_graphs(result_dict, save_fig=False, save_dir="./"):
+def display_updated_graphs(result_dict, save_fig=False, save_dir="./") -> None:
     """
     Display original_graph side by side with updated_graph, which contains updated node connections (if any
     were detected). Note: if padded_adjacency() is called with connectivity=2, the before and after images will
@@ -65,7 +65,7 @@ def display_updated_graphs(result_dict, save_fig=False, save_dir="./"):
         None
     """
     skeleton = result_dict["skeleton"]
-    original_graph = result_dict["skeleton_graph_old"]
+    original_graph = result_dict["skeleton_graph_original"]
     graph = result_dict["skeleton_graph"]
     coordinates = result_dict["skeleton_coordinates"]
     plot_coords = reverse_coordinates(coordinates)
@@ -100,7 +100,7 @@ def display_updated_graphs(result_dict, save_fig=False, save_dir="./"):
         plt.show()
 
 
-def get_junction_color(length):
+def get_junction_color(length: int) -> str:
     """
     Return a color based on an integer from 1-5+, where 5+ defaults to red.
     
@@ -121,7 +121,7 @@ def get_junction_color(length):
     }.get(length, "red")
 
 
-def plot_junctions(result_dict, label, idx, save_fig=False, save_dir="./"):
+def plot_junctions(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all junction nodes (nodes with 3+ connections)
     a separate color so that they can be easily identified.
@@ -216,7 +216,7 @@ def plot_junctions(result_dict, label, idx, save_fig=False, save_dir="./"):
         plt.show()
 
 
-def plot_cliques(result_dict, label, idx, save_fig=False, save_dir="./"):
+def plot_cliques(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all junction nodes (nodes with 3+ connections)
     a separate color based on how many nodes there are in a junction cluster.
@@ -316,7 +316,7 @@ def plot_cliques(result_dict, label, idx, save_fig=False, save_dir="./"):
         plt.show()
 
 
-def plot_primary_junctions(result_dict, label, idx, save_fig=False, save_dir="./"):
+def plot_primary_junctions(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Color all junction nodes (nodes with 3+ connections)
     a separate color so that they can be easily identified. Then, mark all primary junction nodes (all nodes that
@@ -428,7 +428,7 @@ def plot_primary_junctions(result_dict, label, idx, save_fig=False, save_dir="./
         plt.show()
     
 
-def plot_removed_edges(result_dict, label, idx, save_fig=False, save_dir="./"):
+def plot_removed_edges(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
     """
     Plot the edges removed from a graph before path segmentation.
 
@@ -501,7 +501,7 @@ def plot_removed_edges(result_dict, label, idx, save_fig=False, save_dir="./"):
         plt.show()
 
 
-def plot_junctions_and_terminals(result_dict, label, idx, save_fig=False, save_dir="./"):
+def plot_junctions_and_terminals(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
     """
     Plot junctions and terminals (path segmentation start- and endpoints).
 
@@ -596,11 +596,27 @@ def plot_junctions_and_terminals(result_dict, label, idx, save_fig=False, save_d
         plt.show()
 
 
-def plot_graph_paths(graph, skeleton, paths_list, endpoints_list, search_by_node, label, idx, save_fig=False, save_dir="./"):
+def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
     """
     Plot paths in a NetworkX graph.
 
+    Parameters:
+        result_dict: a dictionary of processed attributes from a call to padded_adjacency()
+
+        label: what digit, character, shape, etc. does result_dict represent
+
+        idx: the index of where the digit, character, shape, etc. is found in a dataset
+
+    Returns:
+        None
     """
+    graph = result_dict["skeleton_graph"]
+    path_seg_graph = result_dict["skeleton_graph_path_seg"]
+    skeleton = result_dict["skeleton"]
+    paths_list = result_dict["paths_list"]
+    endpoints_list = result_dict["endpoints_path_seg"]
+    search_by_node = result_dict["search_by_node"]
+
     # create custom colormap with Set3 as the base
     base_colormap = cm.Set3
     
@@ -654,6 +670,9 @@ def plot_graph_paths(graph, skeleton, paths_list, endpoints_list, search_by_node
         for endpoint in endpoints_list:
             nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=endpoints_list, node_color=outline_color, **endpoint_options)
     
+    # add node labels
+    nx.draw_networkx_labels(path_seg_graph, pos=node_locations_plotting, font_size=8)
+
     # title, save figure
     figtitle = f"path_segmentation_{label}_idx_{idx}"
     ax.set_title(figtitle)
