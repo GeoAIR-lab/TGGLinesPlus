@@ -731,6 +731,24 @@ def TGGLinesPlus(image, connectivity=2):
     #### path segmentation ####
     paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
 
+    if(len(paths_list) == 0):
+        """
+        In most cases, there will be at least one end node or junction node. 
+        But in a special case where the graph is perfectly circular (not in a geometric case, but in the sense each node leads to the next in a circular manner), 
+        then the path of the graph should be the graph itself.
+        """
+        # find which other nodes the first node is connected to
+        # 0 is the top, left-most node in NetworkX
+        # left_right_connection_nodes = [node for node in flatten_list(list(path_seg_graph.edges(0))) if node != 0]
+
+        # potential_paths = [list(nx.all_simple_paths(path_seg_graph, 0, node)) for node in left_right_connection_nodes]
+        # # since the nodes in left_right_connection_nodes are adjacent to node 0, 
+        # # two of the paths will be [0, x], [0, y]; but we want the full paths that complete the full graph circle
+        # potential_paths = [sublist for sublist in flatten_list(potential_paths) if len(sublist) > 2]
+        # print(potential_paths)
+        
+        # paths_list = sorted(potential_paths)[0]
+
     # return the updated graph object and important info as dict
     return {
         "cliques": cliques,

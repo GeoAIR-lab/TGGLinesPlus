@@ -663,7 +663,7 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
         random_color = custom_cmap(random_idx[i])
         color_hex = colors.to_hex(random_color, keep_alpha=False)
         nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=path, node_color=color_hex, **node_options)
-        nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(graph, path), edge_color=color_hex, **edge_options)
+        nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(path_seg_graph, path), edge_color=color_hex, **edge_options)
         
     # only primary junction nodes
     if(len(endpoints_list) != 0):
