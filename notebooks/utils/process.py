@@ -624,7 +624,7 @@ def segment_paths(graph, endpoints_list):
     return final_paths_list
     
 
-def TGGLinesPlus(image, connectivity=2):
+def TGGLinesPlus(image, idx):
     """
     This method is currently designed for one image, though it also works for lists of images. 
     For instance, you can use a list comprehension on a list of input images like so: 
@@ -633,148 +633,129 @@ def TGGLinesPlus(image, connectivity=2):
     Parameters:
         image: the input image
 
-        connectivity: an int value
-            1 represents vertical and horizontal edges in a graph
-            2 represents horizontal, vertical, and diagonal edges (full triangle: two lengs and the hypotenuse)
-
     Returns:
         a dictionary of important values and objects generated during the method
 
     """
     # set default values for variables that depend on the value of connectivity
-    neighbor_locations = None
-    neighbor_values = None
-    current_degrees = None
+    all_paths_list = []
+    path_seg_graphs_list = []
+    path_seg_endpoints_list = []
 
-    # create binary image
+    # begin image processing
+    # create image binary
     thresh = threshold_mean(image)
     binary = image > thresh
-    
-    # create skeleton, pad image
-    # pad skeleton image AFTER thresholding, otherwise it can affect the resulting skeleton
+
+    # create image skeleton
     skeleton = skeletonize(binary)
     skeleton = pad_image(skeleton)
 
-    # then convert to scipy sparse array
-    skeleton_array, skeleton_coords = create_skeleton_graph(skeleton, connectivity=connectivity)
+    # convert skeleton to scipy sparse array, then create graph from scipy sparse array
+    skeleton_array, skeleton_coordinates = create_skeleton_graph(skeleton, connectivity=2)
+    skeleton_graph = nx.from_scipy_sparse_array(skeleton_array)
+    search_by_node, search_by_location = get_node_locations(skeleton_coordinates)
 
-    # create graph from scipy sparse array, get node locations and save as dict
-    skeleton_graph_original = nx.from_scipy_sparse_array(skeleton_array)
-    search_by_node, search_by_location = get_node_locations(skeleton_coords)
-    
-    if(connectivity == 1):
-        # if connectivity = 1, then skimage will only add vertical and horizontal edges to the graph
-        # so we need to find the diagonal edges and add them to our graph
+    # get subgraphs from main graph
+    subgraph_nodes = [list(subgraph) for subgraph in list(nx.connected_components(skeleton_graph))]
+    skeleton_subgraphs = [skeleton_graph.subgraph(c).copy() for c in subgraph_nodes]
 
-        # find neighboring pixels and their values
-        neighbor_locations = [find_neighbors(pixel) for pixel in skeleton_coords]
-        neighbor_values = get_neighbor_values(neighbor_locations, skeleton)
+    for subgraph in skeleton_subgraphs:
+        nodes = list(subgraph.nodes)
+        # calculate final node degrees and node types from updated graph
+        degrees = [val for (node, val) in subgraph.degree()]
+        node_types = list(map(degree_to_node_type, degrees))
 
-        # identify degree mismatch for each node in graph
-        # if degree mismatch exists, compile a list of each node where this is true in nx_graph
-        potential_degrees = get_node_degree(neighbor_values)
-        current_degrees = [val for (node, val) in skeleton_graph_original.degree()]
-        problem_nodes = list(np.where(np.array(potential_degrees) - np.array(current_degrees) != 0)[0])
+        # create NetworkX subgraph from junction nodes to find cliques
+        junction_locations = list(np.where(np.array(node_types)=="J")[0])
+        junction_subgraph = nx.subgraph(subgraph, nbunch=junction_locations)
 
-        # find problem nodes
-        node_neighbors = node_in_neighbors(neighbor_locations, skeleton_coords)
-        problem_node_neighbor_idx = [node_neighbors[idx] for idx in problem_nodes]
+        # find cliques and primary junction nodes
+        cliques, unique_cliques = get_unique_cliques(junction_subgraph, junction_locations)
 
-        # update any missing connections between neighboring nodes in nx_graph
-        skeleton_graph_updated = add_missing_connections(problem_nodes, problem_node_neighbor_idx, search_by_location, skeleton_graph_original)
-    else:
-        skeleton_graph_updated = skeleton_graph_original
+        # from here, we want to find primary junctions, which are either:
+        #   - solo junctions: a junction (by definition with 3+ connections) not connected to any other junctions
+        #   - triangle cliques: junctions that form right triangles with themselves
+        cliques_1_single_junction = [clique for clique in unique_cliques if len(clique) == 1]
+        cliques_1_single_junction = flatten_list(cliques_1_single_junction)
 
-    # calculate final node degrees and node types from updated graph
-    degrees = [val for (node, val) in skeleton_graph_updated.degree()]
-    node_types = list(map(degree_to_node_type, degrees))
+        cliques_3_right_triangles = set([find_primary_junctions(clique, search_by_node) for clique in unique_cliques if len(clique) == 3])
+        cliques_3_right_triangles = sorted(list(cliques_3_right_triangles))
 
-    # create NetworkX subgraph from junction nodes to find cliques
-    junction_locations = list(np.where(np.array(node_types)=="J")[0])
-    junction_subgraph = nx.subgraph(skeleton_graph_updated, nbunch=junction_locations)
+        edges_to_remove = [find_removable_edges(clique, search_by_node) for clique in unique_cliques if len(clique) == 3]
+        path_seg_graph = subgraph.copy()
+        path_seg_graph.remove_edges_from(edges_to_remove)
+        path_seg_graphs_list.append(path_seg_graph)
+        #skeleton_array_updated = nx.to_scipy_sparse_matrix(path_seg_graph)
 
-    # find cliques and primary junction nodes
-    cliques, unique_cliques = get_unique_cliques(junction_subgraph, junction_locations)
+        # make sure that we successfully subtracted the right number of edges
+        num_edges = len(subgraph.edges()) - len(path_seg_graph.edges()) 
+        assert(num_edges == len(edges_to_remove))
 
-    # from here, we want to find primary junctions, which are either:
-    #   - solo junctions: a junction (by definition with 3+ connections) not connected to any other junctions
-    #   - triangle cliques: junctions that form right triangles with themselves
-    cliques_1_single_junction = [clique for clique in unique_cliques if len(clique) == 1]
-    cliques_1_single_junction = flatten_list(cliques_1_single_junction)
+         # AFTER we find cliques_3_right_triangles, we can find cliques_2_adjacent_nodes
+        # after we remove edges, some nodes lose that edge and are no longer junctions (3+ connections)
+        # we can ignore these nodes and only focus on "branching" nodes, or nodes that look like a Y (i.e., they become cliques_1_single_junction nodes)
+        adjacent_junctions_list = [clique for clique in unique_cliques if len(clique) == 2]
+        adjacent_junctions_list = sorted(list(set(flatten_list(adjacent_junctions_list))))
+        cliques_2_adjacent_junctions = [node for node in adjacent_junctions_list if len(path_seg_graph.edges(node)) >= 3]
 
-    cliques_3_right_triangles = set([find_primary_junctions(clique, search_by_node) for clique in unique_cliques if len(clique) == 3])
-    cliques_3_right_triangles = sorted(list(cliques_3_right_triangles))
+        # for path segmentation, we also want to include "terminal" end nodes
+        # for path segmentation, we also want to include "terminal" end nodes
+        end_node_locations = list(np.where(np.array(node_types) == "E")[0])    
+        end_nodes = [nodes[idx] for idx in end_node_locations]
 
-    edges_to_remove = [find_removable_edges(clique, search_by_node) for clique in unique_cliques if len(clique) == 3]
-    path_seg_graph = skeleton_graph_updated.copy()
-    path_seg_graph.remove_edges_from(edges_to_remove)
+        primary_junctions = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles)
+        path_seg_endpoints = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles + end_nodes)
+        path_seg_endpoints_list.append(path_seg_endpoints)
 
-    # make sure that we successfully subtracted the right number of edges
-    num_edges = len(skeleton_graph_updated.edges()) - len(path_seg_graph.edges()) 
-    assert(num_edges == len(edges_to_remove))
-
-     # AFTER we find cliques_3_right_triangles, we can find cliques_2_adjacent_nodes
-    # after we remove edges, some nodes lose that edge and are no longer junctions (3+ connections)
-    # we can ignore these nodes and only focus on "branching" nodes, or nodes that look like a Y (i.e., they become cliques_1_single_junction nodes)
-    adjacent_junctions_list = [clique for clique in unique_cliques if len(clique) == 2]
-    adjacent_junctions_list = sorted(list(set(flatten_list(adjacent_junctions_list))))
-    cliques_2_adjacent_junctions = [node for node in adjacent_junctions_list if len(path_seg_graph.edges(node)) >= 3]
-
-    # for path segmentation, we also want to include "terminal" end nodes
-    # the location in node_types is the same node number in graph
-    end_nodes = list(np.where(np.array(node_types) == "E")[0])
-
-    primary_junctions = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles)
-    path_seg_endpoints = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles + end_nodes)
-    # print("Path segmentation endpoints: ")
-    # print(path_seg_endpoints)
-    #### path segmentation ####
-    paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
-
-    if(len(paths_list) == 0):
-        """
-        In most cases, there will be at least one end node or junction node. 
-        But in a special case where the graph is perfectly circular (not in a geometric case, but in the sense each node leads to the next in a circular manner), 
-        then the path of the graph should be the graph itself.
-        """
-        # find which other nodes the first node is connected to
-        # 0 is the top, left-most node in NetworkX
-        # left_right_connection_nodes = [node for node in flatten_list(list(path_seg_graph.edges(0))) if node != 0]
-
-        # potential_paths = [list(nx.all_simple_paths(path_seg_graph, 0, node)) for node in left_right_connection_nodes]
-        # # since the nodes in left_right_connection_nodes are adjacent to node 0, 
-        # # two of the paths will be [0, x], [0, y]; but we want the full paths that complete the full graph circle
-        # potential_paths = [sublist for sublist in flatten_list(potential_paths) if len(sublist) > 2]
-        # print(potential_paths)
+        paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
         
-        # paths_list = sorted(potential_paths)[0]
+        if(len(paths_list) == 0):
+            # In most cases, there will be at least one end node or junction node. 
+            # But in a special case where the graph is perfectly circular (not in a geometric case, but in the sense each node leads to the next in a circular manner), 
+            # then the path of the graph should be the graph itself.
+            # find which other nodes the first node is connected to the top, left-most node in NetworkX
+            top_left_node = sorted(list(path_seg_graph.nodes))[0]
+            left_right_connection_nodes = [node for node in flatten_list(list(path_seg_graph.edges(top_left_node))) if node != top_left_node]
+
+            potential_paths = [list(nx.all_simple_paths(path_seg_graph, top_left_node, node)) for node in left_right_connection_nodes]
+            # since the nodes in left_right_connection_nodes are adjacent to node the top-left node, 
+            # two of the paths will be [top_left_node, x], [top_left_node, y]; but we want the full paths that complete the full graph circle
+            potential_paths = [sublist for sublist in flatten_list(potential_paths) if len(sublist) > 2]
+           
+            if(len(potential_paths) == 0):
+                paths_list = []
+                print("Problem image: {}".format(idx))
+            else:
+                paths_list = sorted(potential_paths)[0]
+        
+        all_paths_list.append(paths_list)
 
     # return the updated graph object and important info as dict
     return {
-        "cliques": cliques,
-        "cliques_unique": unique_cliques,
-        "cliques_1_single_junction": cliques_1_single_junction,
-        "cliques_2_adjacent_junctions": cliques_2_adjacent_junctions,
-        "cliques_3_right_triangles": cliques_3_right_triangles,
-        "endpoints_path_seg": path_seg_endpoints,
-        "junction_locations": junction_locations,
-        #"junction_subgraph": junction_subgraph,
-        "junctions_primary": primary_junctions,
-        #"neighbor_locations": neighbor_locations,
-        #"neighbor_values": neighbor_values,
+    #     # "cliques": cliques,
+    #     # "cliques_unique": unique_cliques,
+    #     # "cliques_1_single_junction": cliques_1_single_junction,
+    #     # "cliques_2_adjacent_junctions": cliques_2_adjacent_junctions,
+    #     # "cliques_3_right_triangles": cliques_3_right_triangles,
+    #     # "junction_locations": junction_locations,
+    #     # #"junction_subgraph": junction_subgraph,
+    #     # "junctions_primary": primary_junctions,
+    #     # #"neighbor_locations": neighbor_locations,
+    #     # #"neighbor_values": neighbor_values,
+    #     # "nodes_terminal": end_nodes,
+    #     # "removed_edges": edges_to_remove,
+    #     # "search_by_location": search_by_location,
+        "all_paths_list": all_paths_list, 
         "node_degrees": degrees,
-        #"node_degrees_before_update": current_degrees,
         "node_types": node_types,
-        "nodes_terminal": end_nodes,
-        "paths_list": paths_list,
-        "removed_edges": edges_to_remove,
-        "search_by_location": search_by_location,
+        "path_seg_graphs_list": path_seg_graphs_list, 
+        "path_seg_endpoints_list": path_seg_endpoints_list, 
         "search_by_node": search_by_node,
         "skeleton": skeleton,
-        "skeleton_coordinates": skeleton_coords,
-        "skeleton_graph": skeleton_graph_updated,
-        "skeleton_graph_original": skeleton_graph_original,
-        "skeleton_graph_path_seg": path_seg_graph,
+        "skeleton_coordinates": skeleton_coordinates,
+        "skeleton_graph": skeleton_graph,
+        "skeleton_subgraphs": skeleton_subgraphs,
     }
 
 

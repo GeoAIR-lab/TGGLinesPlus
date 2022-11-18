@@ -609,14 +609,15 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
 
     Returns:
         None
-    """
-    graph = result_dict["skeleton_graph"]
-    path_seg_graph = result_dict["skeleton_graph_path_seg"]
-    skeleton = result_dict["skeleton"]
-    paths_list = result_dict["paths_list"]
-    endpoints_list = result_dict["endpoints_path_seg"]
+    """    
+    subgraphs_list = result_dict["skeleton_subgraphs"]
+    endpoints_list = result_dict["path_seg_endpoints_list"]
+    path_seg_graphs_list = result_dict["path_seg_graphs_list"]
+    paths_list = result_dict["all_paths_list"]
     search_by_node = result_dict["search_by_node"]
+    skeleton = result_dict["skeleton"]
 
+    
     # create custom colormap with Set3 as the base
     base_colormap = cm.Set3
     
@@ -632,7 +633,6 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
     custom_cmap = ListedColormap(colors=new_colors, name="Path Segmentation")
 
     num_colors = len(custom_cmap.colors)
-    random_idx = np.random.choice(num_colors, size=len(paths_list), replace=False)
 
     outline_color = "red"
     
@@ -658,20 +658,42 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
 
     ax.imshow(skeleton, cmap='gray')
 
-    # nodes
-    for i, path in enumerate(paths_list):
-        random_color = custom_cmap(random_idx[i])
-        color_hex = colors.to_hex(random_color, keep_alpha=False)
-        nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=path, node_color=color_hex, **node_options)
-        nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(path_seg_graph, path), edge_color=color_hex, **edge_options)
-        
-    # only primary junction nodes
-    if(len(endpoints_list) != 0):
-        for endpoint in endpoints_list:
-            nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=endpoints_list, node_color=outline_color, **endpoint_options)
+    # find out how many subgraphs there are
+    num_subgraphs = list(range(len(subgraphs_list)))
     
-    # add node labels
-    nx.draw_networkx_labels(path_seg_graph, pos=node_locations_plotting, font_size=8)
+    # iterate over subgraphs, their endpoints, and paths
+    for idx in num_subgraphs:
+        # paths_list has a nested list structure: [ [ [] ] ]
+        # but sometimes, the sublist only has one path, or two brackets before the path: [ [] ]
+        # this means that we need to check whether the list is double- or triple-nested before plotting
+        if(type(paths_list[0][0]) != list):
+            paths_sublist = paths_list
+        else:
+            paths_sublist = paths_list[idx]
+        path_seg_graph = path_seg_graphs_list[idx]
+        endpoints_sublist = endpoints_list[idx]
+        
+        for i, path in enumerate(paths_sublist):
+            # choose a random color from our custom color map
+            # we want to try and make it so that colors do not repeat on adjacent paths, if possible
+            if(len(paths_list) > num_colors):
+                random_idx = np.random.choice(num_colors, size=len(paths_sublist), replace=True)
+            else:
+                random_idx = np.random.choice(num_colors, size=len(paths_sublist), replace=False)
+            
+            random_color = custom_cmap(random_idx[i])
+            color_hex = colors.to_hex(random_color, keep_alpha=False)
+            
+            nx.draw_networkx_nodes(path_seg_graph, pos=node_locations_plotting, nodelist=path, node_color=color_hex, **node_options)
+            nx.draw_networkx_edges(path_seg_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(path_seg_graph, path), edge_color=color_hex, **edge_options)
+
+        # only primary junction nodes
+        if(len(endpoints_sublist) != 0):
+            for endpoint in endpoints_sublist:
+                nx.draw_networkx_nodes(path_seg_graph, pos=node_locations_plotting, nodelist=endpoints_sublist, node_color=outline_color, **endpoint_options)
+
+        # add node labels
+        nx.draw_networkx_labels(path_seg_graph, pos=node_locations_plotting, font_size=8)
 
     # title, save figure
     figtitle = f"path_segmentation_{label}_idx_{idx}"
@@ -679,12 +701,4 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
     
     plt.axis("off")
     plt.tight_layout()
-
-    if(save_fig is True):
-        if not(os.path.isdir(save_dir)):
-            os.mkdir(save_dir)
-        plt.savefig(save_dir+figtitle+".pdf", bbox_inches='tight', format='pdf')      
-        # close figure to save on memory if saving many figures at once
-        plt.close(fig)
-    else:
-        plt.show()
+    plt.show()
