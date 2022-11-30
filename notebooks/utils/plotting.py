@@ -610,13 +610,13 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
     Returns:
         None
     """    
+    skeleton = result_dict["skeleton"]
+    graph = result_dict["skeleton_graph"]
     subgraphs_list = result_dict["skeleton_subgraphs"]
-    endpoints_list = result_dict["path_seg_endpoints_list"]
     path_seg_graphs_list = result_dict["path_seg_graphs_list"]
+    endpoints_list = result_dict["path_seg_endpoints_list"]
     paths_list = result_dict["all_paths_list"]
     search_by_node = result_dict["search_by_node"]
-    skeleton = result_dict["skeleton"]
-
     
     # create custom colormap with Set3 as the base
     base_colormap = cm.Set3
@@ -693,7 +693,7 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
                 nx.draw_networkx_nodes(path_seg_graph, pos=node_locations_plotting, nodelist=endpoints_sublist, node_color=outline_color, **endpoint_options)
 
         # add node labels
-        nx.draw_networkx_labels(path_seg_graph, pos=node_locations_plotting, font_size=8)
+        nx.draw_networkx_labels(graph, pos=node_locations_plotting, font_size=8)
 
     # title, save figure
     figtitle = f"path_segmentation_{label}_idx_{idx}"

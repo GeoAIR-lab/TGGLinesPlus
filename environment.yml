@@ -7,5 +7,6 @@ dependencies:
 - ipykernel
 - matplotlib
 - notebook
-- scikit-learn
 - opencv
+- rasterio
+- scikit-learn
