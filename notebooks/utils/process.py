@@ -48,7 +48,7 @@ def read_in_mnist(filename):
     return images_list, labels_list
 
 
-def create_binaries(image):
+def create_binary(image):
     """
     Given an input image, binarize it and return the result.
 
@@ -81,7 +81,7 @@ def pad_image(image):
     return np.pad(image, 1)
 
 
-def create_skeletons(binary):
+def create_skeleton(binary):
     """
     Given an input image binary, skeletonize it, pad it, and return the result.
 
@@ -738,6 +738,7 @@ def TGGLinesPlus(skeleton):
     path_seg_graphs_list = []
     path_seg_endpoints_list = []
 
+    ### CREATE GRAPHS ####
     # convert skeleton to scipy sparse array, then create graph from scipy sparse array
     skeleton_array, skeleton_coordinates = create_skeleton_graph(skeleton, connectivity=2)
     skeleton_graph = nx.from_scipy_sparse_array(skeleton_array)
@@ -751,8 +752,10 @@ def TGGLinesPlus(skeleton):
     subgraph_nodes = [node_list for node_list in subgraph_nodes if len(node_list) >= 3]
     skeleton_subgraphs = [subgraph for subgraph in skeleton_subgraphs if len(subgraph.nodes()) >= 3]
 
+    ### PATH SEGMENTATION ####
     try:
         for subgraph in skeleton_subgraphs:
+            ### GRAPH PATH SIMPLIFICATION ####
             nodes = list(subgraph.nodes)
             
             # calculate final node degrees and node types from updated graph
@@ -772,6 +775,7 @@ def TGGLinesPlus(skeleton):
             path_seg_graph.remove_edges_from(edges_to_remove)
             path_seg_graphs_list.append(path_seg_graph)
 
+            ### FIND ENDPOINTS, SEGMENT PATHS ####
             # AFTER we find which edges to remove, we can update our junctions list
             # after we remove edges, some nodes lose that edge and are no longer junctions (3+ connections)
             degrees_ = [val for (node, val) in path_seg_graph.degree()]
