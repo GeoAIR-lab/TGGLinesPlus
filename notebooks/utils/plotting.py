@@ -676,7 +676,7 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
         for i, path in enumerate(paths_sublist):
             # choose a random color from our custom color map
             # we want to try and make it so that colors do not repeat on adjacent paths, if possible
-            if(len(paths_list) > num_colors):
+            if(len(paths_sublist) > num_colors):
                 random_idx = np.random.choice(num_colors, size=len(paths_sublist), replace=True)
             else:
                 random_idx = np.random.choice(num_colors, size=len(paths_sublist), replace=False)

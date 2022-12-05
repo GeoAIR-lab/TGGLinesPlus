@@ -48,6 +48,23 @@ def read_in_mnist(filename):
     return images_list, labels_list
 
 
+def create_binaries(image):
+    """
+    Given an input image, binarize it and return the result.
+
+    Parameters:
+        image: the input image as an array
+    
+    Returns:
+        binary: an array representing an image binary
+    """
+    thresh = threshold_mean(image)
+    binary = image > thresh
+    
+    return binary
+
+
+
 def pad_image(image):
     """
     Returns an image with a 1px border along each edge.
@@ -62,6 +79,22 @@ def pad_image(image):
     
     """
     return np.pad(image, 1)
+
+
+def create_skeletons(binary):
+    """
+    Given an input image binary, skeletonize it, pad it, and return the result.
+
+    Parameters:
+        binary: an array representing an image bianry
+    
+    Returns:
+        skeleton: an array representing an image skeleton
+    """
+    skeleton = skeletonize(binary)
+    skeleton = pad_image(skeleton)
+    
+    return skeleton
 
 
 def create_skeleton_graph(skeleton, connectivity=1):
@@ -222,7 +255,7 @@ def get_node_degree(pixel_values_list):
         degree of node (how many connections it *should* have, not what it *does* have)
     """
     # we do not want to include the center pixel (node) in our sum
-    return [np.sum(sub_list[1:]) for sub_list in pixel_values_list]
+    return [np.sum(sublist[1:]) for sublist in pixel_values_list]
 
 
 def node_in_neighbors(neighbors_list, node_coordinates):
@@ -244,42 +277,6 @@ def node_in_neighbors(neighbors_list, node_coordinates):
         node_neighbors.append([pixel for pixel in node_coordinates if pixel in neighbors])
     
     return node_neighbors
-
-
-def add_missing_connections(problem_nodes, problem_node_neighbor_idx, node_locations, input_graph):
-    """
-    This method returns which pixels from neighbors_list are in node_coordinates,
-    essentially identifying neighbors are nodes from pixel coordinates.
-    
-    Parameters:
-        problem_nodes: a list integers of nodes that are missing potential connections with neighboring nodes
-    
-        problem_node_neighbor_idx: a list of (x, y) pairs for neighboring pixels for each node in problem_nodes
-    
-        node_locations: a dict with strings of (x, y) coordinates as keys and node numbers as values
-                        ex: {'[x, y]': node_num}
-                    
-        input_graph: a NetworkX Graph object from which problem_nodes, problem_node_neighbor_idx, and node_locations are derived
-    
-    Returns:
-        updated_graph: a copy of input_graph with any missing connections (edges) added
-    
-    """
-    updated_graph = input_graph.copy()
-    
-    for i, element in enumerate(problem_node_neighbor_idx):
-        # obtain a list of nodes that should be connected to problem_node
-        problem_node = problem_nodes[i]
-        potential_connections = [node_locations[str(loc)] for loc in element]
-        check_connection = [nx.is_path(updated_graph, [problem_node, node]) for node in potential_connections]
-        not_connected_idx = list(np.where(np.array(check_connection) == False)[0])
-        not_connected = [potential_connections[idx] for idx in not_connected_idx]
-        
-        # add connections here
-        connections_to_add = [(problem_node, missing_connection) for missing_connection in not_connected]
-        updated_graph.add_edges_from(connections_to_add)
-        
-    return updated_graph
 
 
 def degree_to_node_type(degree):
@@ -514,6 +511,41 @@ def get_initial_paths(graph, endpoints_list):
     return initial_paths
 
 
+def split_path(initial_paths, endpoints_list):
+    """
+    Given a set of initial paths in a graph, we want to extract all "subpaths" from them where
+    paths are split so that they start and end with a path segmentation endpoint.
+    
+    Parameters:
+        initial_paths: the initial graphs found in a NetworkX graph, from calling nx.all_simple_paths(graph, node1, node2)
+                       for all nodes in endpoints_list
+        
+        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+
+    Returns:
+        split_paths: a unique set of lists in initial_paths
+
+    """
+    split_paths = []
+
+    for path in initial_paths:
+        found_endpoints = [node for node in path if node in endpoints_list]
+        
+        endpoints_idx = [path.index(endpoint) for endpoint in found_endpoints]
+        
+        # https://stackoverflow.com/questions/21752610/iterate-every-2-elements-from-list-at-a-time
+        endpoint_combos = [[start, end] for start, end in zip(endpoints_idx[:-1], endpoints_idx[1:])]
+        
+        subpaths = [path[start: end+1] for start, end in endpoint_combos]
+        
+        split_paths.append(subpaths)
+
+    split_paths = [tuple(sublist) for sublist in flatten_list(split_paths)]
+    split_paths = [list(sublist) for sublist in list(set(split_paths))]
+
+    return split_paths
+
+
 def shorten_path(path, endpoints_list):
     """
     This method stops adding elements from path when it finds an element in junctions_list. In this way,
@@ -547,7 +579,8 @@ def shorten_path(path, endpoints_list):
     if (len(path_middle) == 0):
         path_end = [path[1]]
     else:
-        path_end_idx = np.where(np.array(path) == path_middle[-1])[0][0] + 1
+        #path_end_idx = np.where(np.array(path) == path_middle[-1])[0][0] + 1
+        path_end_idx = path.index(path_middle[-1]) + 1
         path_end = [path[path_end_idx]]
 
     short_path = path_start + path_middle + path_end
@@ -605,15 +638,13 @@ def segment_paths(graph, endpoints_list):
     # initial_paths_list: a nested list of lists of paths between a start and end node
     initial_paths_list = get_initial_paths(graph, endpoints_list)
 
-    # shorten paths, remove duplicate lists, convert each path back to list type from type tuple
-    short_paths_list = sorted(list(set([tuple(shorten_path(path, endpoints_list)) for path in initial_paths_list])))
-    short_paths_list = [list(path) for path in short_paths_list]
+    # a set of unique paths in a graph, all of which start and end with a path segmentation endpoint
+    split_paths_list = split_path(initial_paths_list, endpoints_list)
 
     # prevent path reversals from being included, e.g. [1, 2, 3] and not also [3, 2, 1]
-    final_paths_list = remove_reversed_list(short_paths_list)
+    final_paths_list = remove_reversed_list(split_paths_list)
 
     return final_paths_list
-
 
 
 def add_loops(graph):
@@ -685,16 +716,18 @@ def add_cycles(graph, endpoints_list):
     cycle_paths = [list(path) for path in cycle_paths]
     
     return cycle_paths
-    
 
-def TGGLinesPlus(image, idx):
+
+def TGGLinesPlus(skeleton):
     """
-    This method is currently designed for one image, though it also works for lists of images. 
+    This method is currently designed for one image skeleton, though it also works for lists of skeletons. 
     For instance, you can use a list comprehension on a list of input images like so: 
-        output_images = [TGGLinesPlus(image) for image in input_images]
+        image_binaries_list = [create_binaries(image) for image in input_images_list]
+        image_skeletons_list = [create_seletons(binary) for binary in image_binaries_list]
+        results_dict_list = [TGGLinesPlus(skeleton) for skeleton in image_skeletons_list]
 
     Parameters:
-        image: the input image
+        skeleton: an array representing an image skeleton (image --> binary --> skeleton)
 
     Returns:
         a dictionary of important values and objects generated during the method
@@ -704,15 +737,6 @@ def TGGLinesPlus(image, idx):
     all_paths_list = []
     path_seg_graphs_list = []
     path_seg_endpoints_list = []
-
-    # begin image processing
-    # create image binary
-    thresh = threshold_mean(image)
-    binary = image > thresh
-
-    # create image skeleton
-    skeleton = skeletonize(binary)
-    skeleton = pad_image(skeleton)
 
     # convert skeleton to scipy sparse array, then create graph from scipy sparse array
     skeleton_array, skeleton_coordinates = create_skeleton_graph(skeleton, connectivity=2)
@@ -730,6 +754,7 @@ def TGGLinesPlus(image, idx):
     try:
         for subgraph in skeleton_subgraphs:
             nodes = list(subgraph.nodes)
+            
             # calculate final node degrees and node types from updated graph
             degrees = [val for (node, val) in subgraph.degree()]
             node_types = list(map(degree_to_node_type, degrees))
@@ -741,41 +766,26 @@ def TGGLinesPlus(image, idx):
 
             # find cliques and primary junction nodes
             cliques, unique_cliques = get_unique_cliques(junction_subgraph, junction_nodes)
-
-            # from here, we want to find primary junctions, which are either:
-            #   - solo junctions: a junction (by definition with 3+ connections) not connected to any other junctions
-            #   - triangle cliques: junctions that form right triangles with themselves
-            cliques_1_single_junction = [clique for clique in unique_cliques if len(clique) == 1]
-            cliques_1_single_junction = flatten_list(cliques_1_single_junction)
-
-            cliques_3_right_triangles = set([find_primary_junctions(clique, search_by_node) for clique in unique_cliques if len(clique) == 3])
-            cliques_3_right_triangles = sorted(list(cliques_3_right_triangles))
-
             edges_to_remove = [find_removable_edges(clique, search_by_node) for clique in unique_cliques if len(clique) == 3]
+
             path_seg_graph = subgraph.copy()
             path_seg_graph.remove_edges_from(edges_to_remove)
             path_seg_graphs_list.append(path_seg_graph)
-            #skeleton_array_updated = nx.to_scipy_sparse_matrix(path_seg_graph)
 
-            # make sure that we successfully subtracted the right number of edges
-            num_edges = len(subgraph.edges()) - len(path_seg_graph.edges()) 
-            assert(num_edges == len(edges_to_remove))
-
-            # AFTER we find cliques_3_right_triangles, we can find cliques_2_adjacent_nodes
+            # AFTER we find which edges to remove, we can update our junctions list
             # after we remove edges, some nodes lose that edge and are no longer junctions (3+ connections)
-            # we can ignore these nodes and only focus on "branching" nodes, or nodes that look like a Y (i.e., they become cliques_1_single_junction nodes)
-            adjacent_junctions_list = [clique for clique in unique_cliques if len(clique) == 2]
-            adjacent_junctions_list = sorted(list(set(flatten_list(adjacent_junctions_list))))
-            cliques_2_adjacent_junctions = [node for node in adjacent_junctions_list if len(path_seg_graph.edges(node)) >= 3]
+            degrees_ = [val for (node, val) in path_seg_graph.degree()]
+            node_types_ = list(map(degree_to_node_type, degrees_))
+            junction_locations_ = list(np.where(np.array(node_types_)=="J")[0])
+            junctions_updated = [nodes[idx] for idx in junction_locations_]
 
             # for path segmentation, we also want to include "terminal" end nodes
             end_node_locations = list(np.where(np.array(node_types) == "E")[0])    
             end_nodes = [nodes[idx] for idx in end_node_locations]
 
-            primary_junctions = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles)
-            path_seg_endpoints = sorted(cliques_1_single_junction + cliques_2_adjacent_junctions + cliques_3_right_triangles + end_nodes)
+            # segment paths
+            path_seg_endpoints = sorted(junctions_updated + end_nodes)
             path_seg_endpoints_list.append(path_seg_endpoints)
-
             paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
             
             # if paths_list is an empty list at this point, then there are no path segmentation endpoints
@@ -824,100 +834,4 @@ def TGGLinesPlus(image, idx):
             "skeleton_subgraphs": skeleton_subgraphs,
         }
     except Exception as error:
-        print("Error on image {}, {}".format(idx, error))
-
-
-def total_added_connections(result_dict_list):
-    """
-    Returns the total number of connections added prior and post to running the processing method TGGLinesPlus()
-
-    Parameters:
-        result_dict_list: a list of result objects from calling TGGLinesPlus()
-
-    Returns:
-        total_added: an int (0+) representing the number of connections added to a graph or list of graph objects
-    """
-    degrees_before = np.sum([np.sum(result_dict["node_degrees_before_update"]) for result_dict in result_dict_list])
-    degrees_after = np.sum([np.sum(result_dict["node_degrees"]) for result_dict in result_dict_list])
-
-    total_added = degrees_after - degrees_before
-    print(f"Total connections added: {total_added}")
-    return total_added
-
-
-def merge_lists(lists, results=None):
-    """
-    Merge lists containing one or more common elements.
-    Source: # https://stackoverflow.com/questions/55348640/how-to-merge-lists-with-common-elements-in-a-list-of-lists
-
-    NOTE: this will result in <= len(lists), where an unsuccessful merge will return lists
-
-    Parameters:
-        lists: the lists that you want to try to merge
-
-        results: the list you want to save the results to (optional)
-
-    Returns:
-        the input lists after merge
-
-    """
-    if results is None:
-        results = []
-
-    if not lists:
-        return results
-
-    first = lists[0]
-    merged = []
-    output = []
-
-    for li in lists[1:]:
-        for i in first:
-            if i in li:
-                merged = merged + li
-                break
-        else:
-            output.append(li)
-
-    merged = merged + first
-    results.append(list(set(merged)))
-
-    return merge_lists(output, results)
-
-
-######### TEMP: POSSIBLY DELETE ########
-def find_unique_cliques(result_dict): 
-    """
-    ...
-
-    Parameters:
-
-    Returns:
-    
-    """
-    graph = result_dict["skeleton_graph"]
-    node_types = result_dict["node_types"]
-    
-    junction_locations = list(np.where(np.array(node_types)=="J")[0])
-    junctions_subgraph = nx.subgraph(graph, nbunch=junction_locations)
-    cliques = [nx.cliques_containing_node(junctions_subgraph, nodes=junction) for junction in junction_locations]
-    unique_cliques = sorted([sorted(val) for sublist in cliques for val in sublist])
-
-#     cliques = [sorted(list(nx.find_cliques(junctions_subgraph, nodes=[junction]))[0]) for junction in junction_locations]
-#     cliques_set = list(set([tuple(clique) for clique in cliques]))
-#     unique_cliques = sorted([sorted(list(clique_tuple)) for clique_tuple in cliques_set])
-
-    keep_merging = True
-    cliques_length = len(unique_cliques)
-
-    # there are many non-unique lists; here we will merge them into shapes in a recursive search
-    while(keep_merging is True):
-        unique_cliques = merge_lists(unique_cliques)
-
-        if(len(unique_cliques) == cliques_length):
-            keep_merging = False
-        else:
-            cliques_length = len(unique_cliques)
-
-    unique_cliques = [sorted(merged_cliques) for merged_cliques in unique_cliques]
-    return unique_cliques
+        print("{}".format(error))
