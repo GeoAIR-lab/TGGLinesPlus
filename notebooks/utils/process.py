@@ -9,6 +9,8 @@ from skimage import graph as skgraph
 
 import networkx as nx
 
+import rasterio
+
 
 def read_in_mnist(filename):
     """
@@ -48,6 +50,70 @@ def read_in_mnist(filename):
     return images_list, labels_list
 
 
+def read_in_chinese_mnist(filename):
+    """
+    Returns the compact CSV version of the Chinese MNIST dataset with lists for dataset images and corresponding labels.
+        
+    Parameters:
+        filename: the location of the Chinese MNIST CSV file
+    
+    Returns:
+        images_list: list of a numpy array for each image in the MNIST dataset
+
+        labels_list: a list of digit labels (integers), corresponding to each image in images_list
+    """
+    with open(filename, 'r') as csv_file:
+            images_list = []
+            labels_list = []
+            digit_labels_list = []
+
+            fileObject =  csv.reader(csv_file)
+
+            # skip the first line, the header
+            next(fileObject)
+
+            for data in fileObject:
+                # the last two columns are the labels
+                # the last element is the chinese character
+                # the second to last element is the digit label assigned to the character
+                label = data[-1]
+                labels_list.append(label)
+
+                digit_label = data[-2]
+                digit_labels_list.append(digit_label)
+
+                # the rest of columns are pixels
+                digit_img = data[0:-2]
+
+                # make those columns into a array of 8-bits pixels
+                # this array will be of 1D with length 4096
+                # the pixel intensity values are integers from 0 to 255
+                digit_img = np.array(digit_img, dtype='uint8')
+
+                # reshape the array into 64 x 64 array (2-dimensional array)
+                digit_img = digit_img.reshape((64, 64))
+                images_list.append(digit_img)
+                
+    return images_list, labels_list, digit_labels_list
+
+
+def open_tiff(path):
+    """
+    Open a
+    
+    Parameters:
+        path: the full name / location of the TIFF file
+    
+    Returns:
+        array: the array extracted from the input TIFF file
+    """
+    with rasterio.open(path) as dataset:
+        
+        array = dataset.read(dataset.indexes[0])
+    
+    return array
+
+
 def create_binary(image):
     """
     Given an input image, binarize it and return the result.
@@ -63,6 +129,21 @@ def create_binary(image):
     
     return binary
 
+
+def create_binary_reverse(image):
+    """
+    Given an input image, binarize it and return the reverse of the result.
+
+    Parameters:
+        image: the input image as an array
+    
+    Returns:
+        binary: an array representing an image binary
+    """
+    thresh = threshold_mean(image)
+    binary = image < thresh
+    
+    return binary
 
 
 def pad_image(image):
@@ -323,7 +404,7 @@ def get_unique_cliques(graph, junction_locations):
         Returns:
             cliques: a list of cliques resulting from calling nx.find_cliques(graph, nodes=[...]) on every node in junction_locations
 
-            unique_cliques: a unique set of cliques where duplicateshave been removed from cliques
+            unique_cliques: a unique set of cliques where duplicates have been removed from cliques
         """
         # find cliques and flatten list of lists returned by NetworkX
         cliques = [list(nx.find_cliques(graph, nodes=[junction])) for junction in junction_locations]
@@ -718,7 +799,7 @@ def add_cycles(graph, endpoints_list):
     return cycle_paths
 
 
-def TGGLinesPlus(skeleton):
+def TGGLinesPlus(skeleton, progress=False):
     """
     This method is currently designed for one image skeleton, though it also works for lists of skeletons. 
     For instance, you can use a list comprehension on a list of input images like so: 
@@ -739,6 +820,8 @@ def TGGLinesPlus(skeleton):
     path_seg_endpoints_list = []
 
     ### CREATE GRAPHS ####
+    if(progress):
+        print("Creating image skeleton and graph...")
     # convert skeleton to scipy sparse array, then create graph from scipy sparse array
     skeleton_array, skeleton_coordinates = create_skeleton_graph(skeleton, connectivity=2)
     skeleton_graph = nx.from_scipy_sparse_array(skeleton_array)
@@ -751,10 +834,15 @@ def TGGLinesPlus(skeleton):
     # remove subgraphs with less than 3 nodes, this might just be noise or "skeckle" in the image
     subgraph_nodes = [node_list for node_list in subgraph_nodes if len(node_list) >= 3]
     skeleton_subgraphs = [subgraph for subgraph in skeleton_subgraphs if len(subgraph.nodes()) >= 3]
+    num_subgraphs = len(skeleton_subgraphs)
 
     ### PATH SEGMENTATION ####
+    if(progress):
+        print("Starting path segmentation...")
     try:
-        for subgraph in skeleton_subgraphs:
+        for idx, subgraph in enumerate(skeleton_subgraphs):
+            if(progress):
+                print("       Segmenting subgraph {} of {}".format(idx+1, num_subgraphs))
             ### GRAPH PATH SIMPLIFICATION ####
             nodes = list(subgraph.nodes)
             
@@ -810,7 +898,8 @@ def TGGLinesPlus(skeleton):
 
             all_paths_list.append(paths_list)
         
-
+        if(progress):
+            print("Done")
         # return the updated graph object and important info as dict
         return {
         #     # "cliques": cliques,

@@ -2,6 +2,6 @@
 .ipynb_checkpoints
 __pycache__
 
-problem_images.txt
+chinese_mnist.csv
 L8_20181207.tif
 S1_20181209.tif

@@ -596,7 +596,7 @@ def plot_junctions_and_terminals(result_dict, label, idx, save_fig=False, save_d
         plt.show()
 
 
-def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> None:
+def plot_graph_paths(result_dict, label, idx, node_size=100, node_labels=True, save_fig=False, save_dir="./") -> None:
     """
     Plot paths in a NetworkX graph.
 
@@ -606,6 +606,14 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
         label: what digit, character, shape, etc. does result_dict represent
 
         idx: the index of where the digit, character, shape, etc. is found in a dataset
+        
+        node_size: an integer, how large you want the nodes to look on the graph (100 is good for small images, 30 better for bigger
+        
+        node_labels: boolean, whether to draw the node labels on the figure (does not look good for large graphs
+        
+        save_fig: boolean, whether to save the figure or not
+        
+        save_dir: string path for where to save the figure to
 
     Returns:
         None
@@ -637,7 +645,7 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
     outline_color = "red"
     
     node_options = {
-        "node_size": 100,
+        "node_size": node_size,
     }
 
     edge_options = {
@@ -646,7 +654,7 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
     }
     
     endpoint_options = {
-        "node_size": 100,
+        "node_size": node_size,
         "node_shape": "o", #options: ‘so^>v<dph8’.
         "linewidths": 2,
         "alpha": 1,
@@ -654,7 +662,7 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
 
     node_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in search_by_node.items()])
 
-    fig, ax = plt.subplots(figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(9, 9))
 
     ax.imshow(skeleton, cmap='gray')
 
@@ -692,13 +700,15 @@ def plot_graph_paths(result_dict, label, idx, save_fig=False, save_dir="./") -> 
             for endpoint in endpoints_sublist:
                 nx.draw_networkx_nodes(path_seg_graph, pos=node_locations_plotting, nodelist=endpoints_sublist, node_color=outline_color, **endpoint_options)
 
-        # add node labels
-        nx.draw_networkx_labels(graph, pos=node_locations_plotting, font_size=8)
+        if(node_labels):
+            # add node labels
+            nx.draw_networkx_labels(graph, pos=node_locations_plotting, font_size=8)
 
     # title, save figure
     figtitle = f"path_segmentation_{label}_idx_{idx}"
     ax.set_title(figtitle)
     
     plt.axis("off")
+    plt.margins(0)
     plt.tight_layout()
     plt.show()
