@@ -250,6 +250,28 @@ def get_node_locations(coordinates_list):
     return search_by_node, search_by_location
 
 
+def find_junctions(graph, node_list):
+        """
+        Find degrees for each node in a graph and convert that to node type.
+
+        Parameters:
+            graph: a NetworkX graph
+
+            node_list: a list of nodes in input graph
+
+         Returns:
+            node_types: a list of mapped values from node degree to node type (see method degree_to_node_type() for more info)
+
+            junction_nodes: a list of junction nodes in input graph
+        """
+        degrees = [val for (node, val) in graph.degree()]
+        node_types = list(map(degree_to_node_type, degrees))
+        junction_locations = list(np.where(np.array(node_types)=="J")[0])
+        junction_nodes = [node_list[idx] for idx in junction_locations]
+
+        return node_types, junction_nodes
+
+
 def find_neighbors(pixel):
     """
     Return a list of 8 (x, y) coordinates surrounding a pixel in a grid. This list should
@@ -739,13 +761,10 @@ def TGGLinesPlus(skeleton):
 
     ### GRAPH PATH SIMPLIFICATION ####
     # calculate node degrees and node types from graph
-    nodes = list(skeleton_graph.nodes)   
-    degrees = [val for (node, val) in skeleton_graph.degree()]
-    node_types = list(map(degree_to_node_type, degrees))
+    nodes = list(skeleton_graph.nodes)
+    node_types, junction_nodes = find_junctions(skeleton_graph, nodes)
 
     # create NetworkX subgraph from junction nodes to find cliques
-    junction_locations = list(np.where(np.array(node_types)=="J")[0])
-    junction_nodes = [nodes[idx] for idx in junction_locations]
     junction_subgraph = nx.subgraph(skeleton_graph, nbunch=junction_nodes)
 
     # find cliques and primary junction nodes
@@ -757,25 +776,22 @@ def TGGLinesPlus(skeleton):
     path_seg_graph = simple_graph.copy()
 
     # we need to re-calcualte degrees and node types as path simplification may have removed some junctions
-    degrees_ = [val for (node, val) in path_seg_graph.degree()]
-    node_types_ = list(map(degree_to_node_type, degrees_))
-    junction_locations_ = list(np.where(np.array(node_types_)=="J")[0])
-    junctions_updated = [nodes[idx] for idx in junction_locations_]
+    node_types_updated, junction_nodes_updated = find_junctions(path_seg_graph, nodes)
 
     # for path segmentation, we also want to include "terminal" end nodes
-    end_node_locations = list(np.where(np.array(node_types) == "E")[0])    
+    end_node_locations = list(np.where(np.array(node_types_updated) == "E")[0])    
     end_nodes = [nodes[idx] for idx in end_node_locations]
 
     ### PATH SEGMENTATION ####
     # collect junctions and end nodes
-    path_seg_endpoints = sorted(junctions_updated + end_nodes)    
+    path_seg_endpoints = sorted(junction_nodes_updated + end_nodes)    
     paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
 
     # return the updated graph object and important info as dict
     return {
-        "junction_locations": junction_locations,
-        "node_degrees": degrees_,
-        "node_types": node_types_,
+        "cliques": unique_cliques,
+        "junction_nodes": junction_nodes_updated,
+        "node_types": node_types_updated,
         "paths_list": paths_list, 
         "path_seg_endpoints": path_seg_endpoints, 
         "removed_edges": edges_to_remove,
