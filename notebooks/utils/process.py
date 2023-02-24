@@ -1,6 +1,7 @@
 from collections import Counter
 import csv
 import itertools
+import timeit
 
 import numpy as np
 
@@ -9,11 +10,13 @@ from skimage.morphology import skeletonize
 from skimage import graph as skgraph
 
 import networkx as nx
+# this type alias is for type checking
+nxGraph = nx.classes.graph.Graph
 
 import rasterio
 
 
-def read_in_mnist(filename):
+def read_in_mnist(filename: str):
     """
     Returns the original MNIST dataset with lists for dataset images and corresponding labels.
         
@@ -51,7 +54,7 @@ def read_in_mnist(filename):
     return images_list, labels_list
 
 
-def read_in_chinese_mnist(filename):
+def read_in_chinese_mnist(filename: str):
     """
     Returns the compact CSV version of the Chinese MNIST dataset with lists for dataset images and corresponding labels.
         
@@ -98,7 +101,7 @@ def read_in_chinese_mnist(filename):
     return images_list, labels_list, digit_labels_list
 
 
-def open_tiff(path):
+def open_tiff(path: str) -> np.ndarray:
     """
     Open a
     
@@ -115,7 +118,7 @@ def open_tiff(path):
     return array
 
 
-def create_binary(image):
+def create_binary(image: np.ndarray) -> np.ndarray:
     """
     Given an input image, binarize it and return the result.
 
@@ -131,7 +134,7 @@ def create_binary(image):
     return binary
 
 
-def create_binary_reverse(image):
+def create_binary_reverse(image: np.ndarray) -> np.ndarray:
     """
     Given an input image, binarize it and return the reverse of the result.
 
@@ -147,7 +150,7 @@ def create_binary_reverse(image):
     return binary
 
 
-def pad_image(image):
+def pad_image(image: np.ndarray) -> np.ndarray:
     """
     Returns an image with a 1px border along each edge.
     
@@ -163,7 +166,7 @@ def pad_image(image):
     return np.pad(image, 1)
 
 
-def create_skeleton(binary):
+def create_skeleton(binary: np.ndarray) -> np.ndarray:
     """
     Given an input image binary, skeletonize it, pad it, and return the result.
 
@@ -179,7 +182,7 @@ def create_skeleton(binary):
     return skeleton
 
 
-def create_skeleton_graph(skeleton, connectivity=1):
+def create_skeleton_graph(skeleton: np.ndarray, connectivity: int = 1):
     """
     Return a list of (x, y) coordinates from a True/False or 0/1 skeleton grid.
     
@@ -201,7 +204,7 @@ def create_skeleton_graph(skeleton, connectivity=1):
     return skeleton_graph, skeleton_coords
 
 
-def reverse_coordinates(coordinates_list):
+def reverse_coordinates(coordinates_list: list) -> list:
     """
     For a list of lists containing [x, y] pairs, return a list of list
     reversing the coordinates.
@@ -218,7 +221,7 @@ def reverse_coordinates(coordinates_list):
     return coordinates_reversed
 
 
-def get_node_locations(coordinates_list):
+def get_node_locations(coordinates_list: list):
     """
     Return two dictionaries containing either nodes as keys and node locations as values or
     node locations as keys and nodes as values. This is useful because we can look to see if a 
@@ -250,7 +253,7 @@ def get_node_locations(coordinates_list):
     return search_by_node, search_by_location
 
 
-def find_junctions(graph, node_list):
+def find_junctions(graph: nxGraph, node_list: list):
         """
         Find degrees for each node in a graph and convert that to node type.
 
@@ -272,7 +275,7 @@ def find_junctions(graph, node_list):
         return node_types, junction_nodes
 
 
-def find_neighbors(pixel):
+def find_neighbors(pixel: tuple) -> list:
     """
     Return a list of 8 (x, y) coordinates surrounding a pixel in a grid. This list should
     have the same length as input list pixels_list, but instead of 1 (x, y) pair for each
@@ -298,7 +301,7 @@ def find_neighbors(pixel):
     return neighbors_list
 
 
-def get_pixel_values(pixel_list, image):
+def get_pixel_values(pixel_list: list, image: np.ndarray) -> list:
     """
     Extract the pixel values at a given location in a 2D input image.
     
@@ -322,7 +325,7 @@ def get_pixel_values(pixel_list, image):
     return pixel_values
 
 
-def get_neighbor_values(neighbors_list, image):
+def get_neighbor_values(neighbors_list: list, image: np.ndarray) ->list:
     """
     For each "neighbor" pixel in neighbor_list, extract the pixel value
     in the input image using the get_pixel_values() method.
@@ -347,7 +350,7 @@ def get_neighbor_values(neighbors_list, image):
     return neighbor_values_list
 
 
-def get_node_degree(pixel_values_list):
+def get_node_degree(pixel_values_list: list) -> list:
     """
     This method returns the degree a given node should have. This means that it returns a degree >=
     the current node degree and is used to find nodes that are missing connections with neighboring nodes.
@@ -362,7 +365,7 @@ def get_node_degree(pixel_values_list):
     return [np.sum(sublist[1:]) for sublist in pixel_values_list]
 
 
-def node_in_neighbors(neighbors_list, node_coordinates):
+def node_in_neighbors(neighbors_list: list, node_coordinates: list) -> list:
     """
     This method returns which pixels from neighbors_list are in node_coordinates,
     essentially identifying neighbors are nodes from pixel coordinates.
@@ -383,7 +386,7 @@ def node_in_neighbors(neighbors_list, node_coordinates):
     return node_neighbors
 
 
-def degree_to_node_type(degree):
+def degree_to_node_type(degree: int) -> str:
     """
     For an integer degree, return node type: a value of either be J, T, or E
     
@@ -415,7 +418,7 @@ def degree_to_node_type(degree):
     return node_type
 
 
-def get_unique_cliques(graph, junction_locations):
+def get_unique_cliques(graph: nxGraph, junction_locations: list):
         """
         Get cliques from a NetworkX subgraph built with the junction nodes in junctions_list
         
@@ -441,7 +444,7 @@ def get_unique_cliques(graph, junction_locations):
         return cliques, unique_cliques
 
 
-def get_node_combinations(clique):
+def get_node_combinations(clique: list) -> list:
     """
     Given a clique containing 3 nodes, create all combinations between them.
    
@@ -462,7 +465,7 @@ def get_node_combinations(clique):
     return node_combinations
 
 
-def get_path_weights(node_combinations, search_by_node):
+def get_path_weights(node_combinations: list, search_by_node: dict) -> list:
     """
     ...
     
@@ -503,7 +506,7 @@ def get_path_weights(node_combinations, search_by_node):
     return path_weights
 
 
-def find_primary_junctions(clique, search_by_node):
+def find_primary_junctions(clique: list, search_by_node: dict) -> list:
     """
     ..
     
@@ -532,7 +535,7 @@ def find_primary_junctions(clique, search_by_node):
     return primary_junctions
 
 
-def find_removable_edges(clique, search_by_node):
+def find_removable_edges(clique: list, search_by_node: dict) -> list:
     """
     This method finds diagonal edges in cliques and returns them to be removed from a graph.
     This method is important in being able to find which junction among adjacent junctions 
@@ -569,7 +572,7 @@ def find_removable_edges(clique, search_by_node):
     return edges_to_remove
 
 
-def flatten_list(input_list):
+def flatten_list(input_list: list) -> list:
     """
     Return a list of lists with a flattened structure. 
     
@@ -589,17 +592,17 @@ def flatten_list(input_list):
     return [val for sublist in input_list for val in sublist]
 
 
-# https://stackoverflow.com/questions/15147751/how-to-check-if-all-items-in-a-list-are-there-in-another-list
-def is_subset(list_1, list_2):
+def is_subset(list_1: list, list_2: list) -> set:
     """
     Calculate the multiset difference between two lists, i.e., is one set a subset of a larger set
     """
+    # https://stackoverflow.com/questions/15147751/how-to-check-if-all-items-in-a-list-are-there-in-another-list
     set_1, set_2 = Counter(list_1), Counter(list_2)
     
     return not set_1 - set_2
 
 
-def get_initial_paths(graph, endpoints_list):
+def get_initial_paths(graph: nxGraph, endpoints_list: list):
     """
     Return a list of lists, where each list is a NetworkX path between a starting node and an end node.
     
@@ -645,7 +648,7 @@ def get_initial_paths(graph, endpoints_list):
     return initial_paths, graph
 
 
-def split_path(initial_paths, endpoints_list):
+def split_path(initial_paths: list, endpoints_list: list) -> list:
     """
     Given a set of initial paths in a graph, we want to extract all "subpaths" from them where
     paths are split so that they start and end with a path segmentation endpoint.
@@ -680,7 +683,7 @@ def split_path(initial_paths, endpoints_list):
     return split_paths
 
 
-def add_cycles(graph, current_paths_list):
+def add_cycles(graph: nxGraph, current_paths_list: list) -> list:
     """
     ...
 
@@ -704,7 +707,7 @@ def add_cycles(graph, current_paths_list):
     return paths_plus_cycles
 
 
-def segment_paths(graph, endpoints_list):
+def segment_paths(graph: nxGraph, endpoints_list: list) -> list:
     """
     Segment a graph from given list of endpoints. Here, we define endpoints to be:
     - terminal nodes
@@ -738,7 +741,7 @@ def segment_paths(graph, endpoints_list):
     return final_paths_list
 
 
-def TGGLinesPlus(skeleton):
+def TGGLinesPlus(skeleton: np.ndarray) -> dict:
     """
     This method is currently designed for one image skeleton, though it also works for lists of skeletons. 
     For instance, you can use a list comprehension on a list of input images like so: 
@@ -753,6 +756,8 @@ def TGGLinesPlus(skeleton):
         a dictionary of important values and objects generated during the method
 
     """
+    start = timeit.default_timer()
+    
     ### CREATE GRAPH ####
     # convert skeleton to scipy sparse array, then create graph from scipy sparse array
     skeleton_array, skeleton_coordinates = create_skeleton_graph(skeleton, connectivity=2)
@@ -786,6 +791,9 @@ def TGGLinesPlus(skeleton):
     # collect junctions and end nodes
     path_seg_endpoints = sorted(junction_nodes_updated + end_nodes)    
     paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
+    
+    stop = timeit.default_timer()
+    runtime = stop - start
 
     # return the updated graph object and important info as dict
     return {
@@ -795,6 +803,7 @@ def TGGLinesPlus(skeleton):
         "paths_list": paths_list, 
         "path_seg_endpoints": path_seg_endpoints, 
         "removed_edges": edges_to_remove,
+        "runtime": runtime,
         "search_by_location": search_by_location,
         "search_by_node": search_by_node,
         "simple_graph": simple_graph,
@@ -802,3 +811,37 @@ def TGGLinesPlus(skeleton):
         "skeleton_coordinates": skeleton_coordinates,
         "skeleton_graph": skeleton_graph,
     }
+
+
+def print_stats(result_dict: dict) -> None:
+    """
+    Print useful statistics about the image skeleton and graph after the TGGLinesPlus() method has completed.
+
+    Parameters:
+        result_dict: a NetworkX graph
+        
+    Returns:
+        None
+    """
+    num_junctions = len(result_dict["junction_nodes"])
+    num_pathseg_endpoints = len(result_dict["path_seg_endpoints"])
+    num_graph_nodes = len(result_dict["skeleton_graph"].nodes())
+    percent_pathseg_endpoints = num_pathseg_endpoints / num_graph_nodes
+
+    num_skeleton_pixels = len(np.where(result_dict["skeleton"] == 1)[0])
+    num_image_pixels = result_dict["skeleton"].flatten().shape[0]
+    percent_skeleton_pixels = num_skeleton_pixels / num_image_pixels
+    
+    runtime = result_dict["runtime"]
+
+    print("Number of junctions:                      ", num_junctions)
+    print("Number of path segmentation endpoints:    ", num_pathseg_endpoints)
+    print("Number of nodes in graph:                 ", num_graph_nodes)
+    print("Path seg endpoints as total node percent: ", np.round(percent_pathseg_endpoints, 3))
+    print("------------------------------------------")
+    print("Number of pixels in image skeleton:       ", num_skeleton_pixels)
+    print("Number of pixels in image:                ", num_image_pixels)
+    print("Skeleton pixels as total image percent:   ", np.round(percent_skeleton_pixels, 3))
+    print("------------------------------------------")
+    print(f"Time to run:                               {(runtime):.5f}s")
+    print()

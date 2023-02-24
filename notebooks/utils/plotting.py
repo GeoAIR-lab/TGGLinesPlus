@@ -7,11 +7,13 @@ from matplotlib.colors import ListedColormap
 
 import numpy as np
 import networkx as nx
+# this type alias is for type checking
+nxGraph = nx.classes.graph.Graph
 
 from utils.process import reverse_coordinates
 
 
-def plot_graph(skeleton, graph, coordinates, search_by_node, node_size=100, node_labels=True, label_size=12, save_fig=False, save_dir="./", **kwargs) -> None:
+def plot_graph(skeleton: np.ndarray, graph: nxGraph, coordinates: list, search_by_node: dict, node_size: int = 100, node_labels: bool = True, label_size: int = 12, save_fig:bool = False, save_dir: str = "./", **kwargs) -> None:
     """
     Draw a NetworkX Graph object, with the option of overlaying it onto an image using Matplotlib's imshow() method.
     
@@ -82,7 +84,7 @@ def plot_graph(skeleton, graph, coordinates, search_by_node, node_size=100, node
         plt.show()
 
 
-def plot_cliques(result_dict, label, node_size=100, node_labels=True, label_size=8, save_fig=False, save_dir="./") -> None:
+def plot_cliques(result_dict: dict, label: str, node_size:int = 100, node_labels:bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all junction nodes (nodes with 3+ connections)
     a separate color based on how many nodes there are in a junction cluster.
@@ -192,7 +194,7 @@ def plot_cliques(result_dict, label, node_size=100, node_labels=True, label_size
         plt.show()
     
 
-def plot_removed_edges(result_dict, label, node_size=100, node_labels=True, label_size=8, save_fig=False, save_dir="./") -> None:
+def plot_removed_edges(result_dict: dict, label: str, node_size:int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Plot the edges removed from a graph before path segmentation.
 
@@ -283,7 +285,7 @@ def plot_removed_edges(result_dict, label, node_size=100, node_labels=True, labe
         plt.show()
 
 
-def plot_simplified_graph(result_dict, label, node_size=100, node_labels=True, label_size=8, save_fig=False, save_dir="./") -> None:
+def plot_simplified_graph(result_dict: dict, label: str, node_size: int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Plot NetworkX graph after it has been simplified, i.e., after removing 45 degree edges in cliques.
 
@@ -382,7 +384,7 @@ def get_junction_color(length: int) -> str:
     }.get(length, "red")
 
 
-def plot_junctions(result_dict, label, node_size=100, node_labels=True, label_size=8, save_fig=False, save_dir="./") -> None:
+def plot_junctions(result_dict: dict, label: str, node_size: int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all junction nodes (nodes with 3+ connections)
     a separate color so that they can be easily identified.
@@ -488,7 +490,7 @@ def plot_junctions(result_dict, label, node_size=100, node_labels=True, label_si
         plt.show()
 
 
-def plot_pathseg_endpoints(result_dict, label, node_size=100, node_labels=True, label_size=8, save_fig=False, save_dir="./") -> None:
+def plot_pathseg_endpoints(result_dict: dict, label: str, node_size: int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Plot junctions and terminals (path segmentation start- and endpoints). The only difference between this method and plot_junctions()
     is that it also overlays terminal nodes onto the graph.
@@ -594,7 +596,7 @@ def plot_pathseg_endpoints(result_dict, label, node_size=100, node_labels=True, 
         plt.show()
 
 
-def plot_graph_paths(result_dict, label, node_size=100, endpoints=True, node_labels=True, label_size=8, save_fig=False, save_dir="./") -> None:
+def plot_graph_paths(result_dict: dict, label: str, node_size: int = 100, endpoints: bool = True, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Plot paths in a NetworkX graph.
 
