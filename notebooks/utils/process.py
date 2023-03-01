@@ -798,6 +798,7 @@ def TGGLinesPlus(skeleton: np.ndarray) -> dict:
     # return the updated graph object and important info as dict
     return {
         "cliques": unique_cliques,
+        "end_nodes": end_nodes,
         "junction_nodes": junction_nodes_updated,
         "node_types": node_types_updated,
         "paths_list": paths_list, 
