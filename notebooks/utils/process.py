@@ -814,7 +814,7 @@ def TGGLinesPlus(skeleton: np.ndarray) -> dict:
     }
 
 
-def print_stats(result_dict: dict) -> None:
+def print_stats(result_dict: dict) -> dict:
     """
     Print useful statistics about the image skeleton and graph after the TGGLinesPlus() method has completed.
 
@@ -822,9 +822,10 @@ def print_stats(result_dict: dict) -> None:
         result_dict: a NetworkX graph
         
     Returns:
-        None
+        stats_dict: a dictionary of the computed statistics that are printed out to the user
     """
     num_junctions = len(result_dict["junction_nodes"])
+    num_terminals = len(result_dict["end_nodes"])
     num_pathseg_endpoints = len(result_dict["path_seg_endpoints"])
     num_graph_nodes = len(result_dict["skeleton_graph"].nodes())
     percent_pathseg_endpoints = num_pathseg_endpoints / num_graph_nodes
@@ -834,8 +835,21 @@ def print_stats(result_dict: dict) -> None:
     percent_skeleton_pixels = num_skeleton_pixels / num_image_pixels
     
     runtime = result_dict["runtime"]
+    
+    # create metrics dictionary below
+    stats_dict = {}
+    stats_dict["runtime"] = runtime
+    stats_dict["num_junctions"] = num_junctions
+    stats_dict["num_terminals"] = num_terminals
+    stats_dict["num_pathseg_endpoints"] = num_pathseg_endpoints
+    stats_dict["num_graph_nodes"] = num_graph_nodes
+    stats_dict["percent_pathseg_endpoints"] = percent_pathseg_endpoints
+    stats_dict["num_skeleton_pixels"] = num_skeleton_pixels
+    stats_dict["num_image_pixels"] = num_image_pixels
+    stats_dict["percent_skeleton_pixels"] = percent_skeleton_pixels
 
     print("Number of junctions:                      ", num_junctions)
+    print("Number of terminal nodes:                 ", num_terminals)
     print("Number of path segmentation endpoints:    ", num_pathseg_endpoints)
     print("Number of nodes in graph:                 ", num_graph_nodes)
     print("Path seg endpoints as total node percent: ", np.round(percent_pathseg_endpoints, 3))
@@ -846,3 +860,5 @@ def print_stats(result_dict: dict) -> None:
     print("------------------------------------------")
     print(f"Time to run:                               {(runtime):.5f}s")
     print()
+    
+    return stats_dict
