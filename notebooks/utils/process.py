@@ -844,7 +844,6 @@ def print_stats(result_dict: dict) -> dict:
     stats_dict["num_pathseg_endpoints"] = num_pathseg_endpoints
     stats_dict["num_graph_nodes"] = num_graph_nodes
     stats_dict["percent_pathseg_endpoints"] = percent_pathseg_endpoints
-    stats_dict["num_skeleton_pixels"] = num_skeleton_pixels
     stats_dict["num_image_pixels"] = num_image_pixels
     stats_dict["percent_skeleton_pixels"] = percent_skeleton_pixels
 
@@ -854,7 +853,6 @@ def print_stats(result_dict: dict) -> dict:
     print("Number of nodes in graph:                 ", num_graph_nodes)
     print("Path seg endpoints as total node percent: ", np.round(percent_pathseg_endpoints, 3))
     print("------------------------------------------")
-    print("Number of pixels in image skeleton:       ", num_skeleton_pixels)
     print("Number of pixels in image:                ", num_image_pixels)
     print("Skeleton pixels as total image percent:   ", np.round(percent_skeleton_pixels, 3))
     print("------------------------------------------")
