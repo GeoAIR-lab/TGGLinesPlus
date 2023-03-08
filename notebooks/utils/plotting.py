@@ -91,7 +91,7 @@ def plot_graph(skeleton: np.ndarray, graph: nxGraph, coordinates: list, search_b
         plt.show()
 
 
-def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_labels:bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
+def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_labels:bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all junction nodes (nodes with 3+ connections)
     a separate color based on how many nodes there are in a junction cluster.
@@ -106,6 +106,8 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
         node_labels: boolean, whether to draw the node labels on the figure (does not look good for large graphs
 
         label_size: int, size of the font for labeling node numbers
+
+        show_legend: boolean, whether to plot the legend on the figure
 
         save_fig: boolean, whether to save the figure or not
         
@@ -178,13 +180,12 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
     if(node_labels):
         nx.draw_networkx_labels(graph, pos=node_locations_plotting, **label_options)
 
-    # legend
-    # add custom legend elements
-    non_junction_label = Line2D(color="gray", markerfacecolor="gray", label='NODE', **legend_options)
-    clique_label = Line2D(color='red', markerfacecolor="red", label='CLIQUE', **legend_options)
-    
-    legend_elements = [non_junction_label, clique_label]
-    ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
+    # plot legend
+    if(show_legend):
+        non_junction_label = Line2D(color="gray", markerfacecolor="gray", label='NODE', **legend_options)
+        clique_label = Line2D(color='red', markerfacecolor="red", label='CLIQUE', **legend_options)
+        legend_elements = [non_junction_label, clique_label]
+        ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
     
     plt.axis("off")
     plt.tight_layout()
@@ -205,7 +206,7 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
         plt.show()
     
 
-def plot_removed_edges(result_dict: dict, label: str = "", node_size:int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
+def plot_removed_edges(result_dict: dict, label: str = "", node_size:int = 100, node_labels: bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Plot the edges removed from a graph before path segmentation.
 
@@ -219,6 +220,8 @@ def plot_removed_edges(result_dict: dict, label: str = "", node_size:int = 100, 
         node_labels: boolean, whether to draw the node labels on the figure (does not look good for large graphs
 
         label_size: int, size of the font for labeling node numbers
+
+        show_legend: boolean, whether to plot the legend on the figure
 
         save_fig: boolean, whether to save the figure or not
         
@@ -277,10 +280,11 @@ def plot_removed_edges(result_dict: dict, label: str = "", node_size:int = 100, 
     if(node_labels):
         nx.draw_networkx_labels(graph, pos=node_locations_plotting, **label_options)
 
-    # add custom legend elements
-    removed_edges_label = Line2D(label='REMOVED EDGES', **legend_options)
-    legend_elements = [removed_edges_label]
-    ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
+    # plot legend
+    if(show_legend):
+        removed_edges_label = Line2D(label='REMOVED EDGES', **legend_options)
+        legend_elements = [removed_edges_label]
+        ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
 
     ax.axis('off')
     plt.tight_layout()
@@ -398,7 +402,7 @@ def get_junction_color(length: int) -> str:
     }.get(length, "red")
 
 
-def plot_junctions(result_dict: dict, label: str = "", node_size: int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
+def plot_junctions(result_dict: dict, label: str = "", node_size: int = 100, node_labels: bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all junction nodes (nodes with 3+ connections)
     a separate color so that they can be easily identified.
@@ -413,6 +417,8 @@ def plot_junctions(result_dict: dict, label: str = "", node_size: int = 100, nod
         node_labels: boolean, whether to draw the node labels on the figure (does not look good for large graphs
 
         label_size: int, size of the font for labeling node numbers
+
+        show_legend: boolean, whether to plot the legend on the figure
 
         save_fig: boolean, whether to save the figure or not
         
@@ -481,11 +487,11 @@ def plot_junctions(result_dict: dict, label: str = "", node_size: int = 100, nod
     if(node_labels):
         nx.draw_networkx_labels(simple_graph, pos=node_locations_plotting, **label_options)
 
-    # add custom legend elements
-    junction_label = Line2D(color='red', markerfacecolor="red", label='JUNCTION', **legend_options)
-    
-    legend_elements = [junction_label]
-    ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
+    # plot legend
+    if(show_legend):
+        junction_label = Line2D(color='red', markerfacecolor="red", label='JUNCTIONS', **legend_options)
+        legend_elements = [junction_label]
+        ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
 
     plt.axis("off")
     plt.tight_layout()
@@ -506,7 +512,7 @@ def plot_junctions(result_dict: dict, label: str = "", node_size: int = 100, nod
         plt.show()
 
 
-def plot_terminals(result_dict: dict, label: str = "", node_size: int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
+def plot_terminals(result_dict: dict, label: str = "", node_size: int = 100, node_labels: bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Overlay a NetworkX graph onto a skeletonized image. Then, color all terminal nodes a separate color so that they can be easily identified.
 
@@ -520,6 +526,8 @@ def plot_terminals(result_dict: dict, label: str = "", node_size: int = 100, nod
         node_labels: boolean, whether to draw the node labels on the figure (does not look good for large graphs
 
         label_size: int, size of the font for labeling node numbers
+
+        show_legend: boolean, whether to plot the legend on the figure
 
         save_fig: boolean, whether to save the figure or not
         
@@ -588,11 +596,11 @@ def plot_terminals(result_dict: dict, label: str = "", node_size: int = 100, nod
     if(node_labels):
         nx.draw_networkx_labels(simple_graph, pos=node_locations_plotting, **label_options)
 
-    # add custom legend elements
-    end_label = Line2D(color='red', markerfacecolor="red", label='TERMINAL', **legend_options)
-    
-    legend_elements = [end_label]
-    ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
+    # plot legend
+    if(show_legend):
+        end_label = Line2D(color='red', markerfacecolor="red", label='TERMINALS', **legend_options)
+        legend_elements = [end_label]
+        ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
 
     plt.axis("off")
     plt.tight_layout()
@@ -602,9 +610,9 @@ def plot_terminals(result_dict: dict, label: str = "", node_size: int = 100, nod
             os.mkdir(save_dir)
         # title, save figure
         if(label != ""):
-            figtitle = f"junctions_{label}"
+            figtitle = f"terminals_{label}"
         else: 
-            figtitle = "junctions"
+            figtitle = "terminals"
 
         plt.savefig(save_dir+figtitle+".png", format='png', dpi=300, bbox_inches='tight')      
         # close figure to save on memory if saving many figures at once
@@ -613,9 +621,9 @@ def plot_terminals(result_dict: dict, label: str = "", node_size: int = 100, nod
         plt.show()
 
 
-def plot_pathseg_endpoints(result_dict: dict, label: str = "", node_size: int = 100, node_labels: bool = True, label_size: int = 8, save_fig: bool = False, save_dir: str = "./") -> None:
+def plot_pathseg_points(result_dict: dict, label: str = "", node_size: int = 100, node_labels: bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
     """
-    Plot junctions and terminals (path segmentation start- and endpoints). The only difference between this method and plot_junctions()
+    Plot junctions and terminals (path segmentation start and end points). The only difference between this method and plot_junctions()
     is that it also overlays terminal nodes onto the graph.
 
     Parameters:
@@ -629,6 +637,8 @@ def plot_pathseg_endpoints(result_dict: dict, label: str = "", node_size: int = 
 
         label_size: int, size of the font for labeling node numbers
 
+        show_legend: boolean, whether to plot the legend on the figure
+
         save_fig: boolean, whether to save the figure or not
         
         save_dir: string path for where to save the figure to
@@ -640,7 +650,7 @@ def plot_pathseg_endpoints(result_dict: dict, label: str = "", node_size: int = 
     simple_graph = result_dict["simple_graph"]
     search_by_node = result_dict["search_by_node"]
     coordinates = result_dict["skeleton_coordinates"]
-    path_seg_endpoints = result_dict["path_seg_endpoints"]
+    pathseg_points = result_dict["pathseg_points"]
     
     junction_end_color = "red"
     other_color = "gray"
@@ -667,15 +677,15 @@ def plot_pathseg_endpoints(result_dict: dict, label: str = "", node_size: int = 
     }
 
     # get nodes that are junctions and non-junctions
-    other_locations = [node for node in simple_graph.nodes() if node not in path_seg_endpoints]
+    other_locations = [node for node in simple_graph.nodes() if node not in pathseg_points]
 
     # subset node location dict for each type of node
-    endpoint_nodes_dict = dict([item for item in search_by_node.items() if item[0] in path_seg_endpoints])
-    other_nodes_dict = dict([item for item in search_by_node.items() if item[0] not in path_seg_endpoints])
+    pathseg_point_nodes_dict = dict([item for item in search_by_node.items() if item[0] in pathseg_points])
+    other_nodes_dict = dict([item for item in search_by_node.items() if item[0] not in pathseg_points])
 
     # reverse node locations for plotting in matplotlib
     node_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in search_by_node.items()])
-    enpoint_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in endpoint_nodes_dict.items()])
+    pathseg_point_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in pathseg_point_nodes_dict.items()])
     other_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in other_nodes_dict.items()])
 
     # plot skeleton
@@ -684,23 +694,24 @@ def plot_pathseg_endpoints(result_dict: dict, label: str = "", node_size: int = 
     ax.imshow(skeleton, cmap="gray")
 
     # plot nodes by type
-    # non-path seg endpoint nodes
+    # non-path segmentation point nodes
     nx.draw_networkx_nodes(simple_graph, pos=node_locations_plotting, nodelist=other_locations, node_color=other_color, **node_options)
     nx.draw_networkx_edges(simple_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(simple_graph, other_locations), edge_color=other_color, **edge_options)
 
     # junction and end nodes
-    if(len(path_seg_endpoints) != 0):
-        nx.draw_networkx_nodes(simple_graph, pos=node_locations_plotting, nodelist=path_seg_endpoints, node_color=junction_end_color, **node_options)
-        nx.draw_networkx_edges(simple_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(simple_graph, path_seg_endpoints), edge_color=junction_end_color, **edge_options)
+    if(len(pathseg_points) != 0):
+        nx.draw_networkx_nodes(simple_graph, pos=node_locations_plotting, nodelist=pathseg_points, node_color=junction_end_color, **node_options)
+        nx.draw_networkx_edges(simple_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(simple_graph, pathseg_points), edge_color=junction_end_color, **edge_options)
 
     # add node labels
     if(node_labels):
         nx.draw_networkx_labels(simple_graph, pos=node_locations_plotting, **label_options)
 
-    # add custom legend elements
-    junction_end_label = Line2D(color='red', markerfacecolor="red", label='JUNCTION + END', **legend_options)
-    legend_elements = [junction_end_label]
-    ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
+    # plot legend
+    if(show_legend):
+        junction_end_label = Line2D(color='red', markerfacecolor="red", label='JUNCTIONS + TERMINALS', **legend_options)
+        legend_elements = [junction_end_label]
+        ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
 
     plt.axis("off")
     plt.tight_layout()
@@ -720,7 +731,7 @@ def plot_pathseg_endpoints(result_dict: dict, label: str = "", node_size: int = 
         plt.show()
 
 
-def plot_graph_paths(result_dict: dict, label: str = "", node_size: int = 100, plot_endpoints: bool = True, node_labels: bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
+def plot_graph_paths(result_dict: dict, label: str = "", node_size: int = 100, plot_pathseg_points: bool = True, node_labels: bool = True, label_size: int = 8, show_legend: bool = False, save_fig: bool = False, save_dir: str = "./") -> None:
     """
     Plot paths in a NetworkX graph.
 
@@ -731,7 +742,7 @@ def plot_graph_paths(result_dict: dict, label: str = "", node_size: int = 100, p
         
         node_size: an integer, how large you want the nodes to look on the graph (100 is good for small images, 30 better for bigger
         
-        plot_endpoints: boolean, whether to plot path_seg_endpoints on top of graph paths to better see end points and junctions
+        plot_pathseg_points: boolean, whether to plot path segmentation points (junctions + terminals) on top of graph paths to better see end points and junctions
         
         node_labels: boolean, whether to draw the node labels on the figure (does not look good for large graphs
         
@@ -749,7 +760,7 @@ def plot_graph_paths(result_dict: dict, label: str = "", node_size: int = 100, p
     skeleton = result_dict["skeleton"]
     simple_graph = result_dict["simple_graph"]
     search_by_node = result_dict["search_by_node"]
-    path_seg_endpoints = result_dict["path_seg_endpoints"]
+    pathseg_points = result_dict["pathseg_points"]
     paths_list = result_dict["paths_list"]
     
     # create custom colormap here
@@ -785,7 +796,7 @@ def plot_graph_paths(result_dict: dict, label: str = "", node_size: int = 100, p
         "font_size": label_size,
     }
     
-    endpoint_options = {
+    pathseg_point_options = {
         "node_size": node_size,
         "node_shape": "o", #options: ‘so^>v<dph8’.
         "linewidths": 2,
@@ -814,18 +825,18 @@ def plot_graph_paths(result_dict: dict, label: str = "", node_size: int = 100, p
         nx.draw_networkx_edges(simple_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(simple_graph, path), edge_color=color_hex, **edge_options)
     
     # junction and end nodes
-    if(plot_endpoints):
-        if(len(path_seg_endpoints) != 0):
-            nx.draw_networkx_nodes(simple_graph, pos=node_locations_plotting, nodelist=path_seg_endpoints, node_color=junction_end_color, **node_options)
-            nx.draw_networkx_edges(simple_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(simple_graph, path_seg_endpoints), edge_color=junction_end_color, **edge_options)
+    if(plot_pathseg_points):
+        if(len(pathseg_points) != 0):
+            nx.draw_networkx_nodes(simple_graph, pos=node_locations_plotting, nodelist=pathseg_points, node_color=junction_end_color, **node_options)
+            nx.draw_networkx_edges(simple_graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(simple_graph, pathseg_points), edge_color=junction_end_color, **edge_options)
 
     #add node labels
     if(node_labels):
         nx.draw_networkx_labels(simple_graph, pos=node_locations_plotting, **label_options)
     
-    # add custom legend elements
+    # plot legend
     if(show_legend):
-        junction_end_label = Line2D(color='red', markerfacecolor="red", label='JUNCTION + END', **legend_options)
+        junction_end_label = Line2D(color='red', markerfacecolor="red", label='JUNCTIONS + TERMINALS', **legend_options)
         legend_elements = [junction_end_label]
         ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
 

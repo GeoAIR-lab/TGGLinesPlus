@@ -579,10 +579,8 @@ def flatten_list(input_list: list) -> list:
     NOTE: if you input a list of lists of lists, you will get back a list of lists.
     However, if you input a list of lists, this will return a list (which can cause problems for other methods).
 
-    Parameters:
-        graph: a NetworkX graph
-        
-        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+    Parameters:        
+        input_list: a list of lists
 
     Returns:
         a list with a flattened structure
@@ -602,30 +600,30 @@ def is_subset(list_1: list, list_2: list) -> set:
     return not set_1 - set_2
 
 
-def get_initial_paths(graph: nxGraph, endpoints_list: list):
+def get_initial_paths(graph: nxGraph, pathseg_points_list: list):
     """
     Return a list of lists, where each list is a NetworkX path between a starting node and an end node.
     
     Parameters:
         graph: a NetworkX graph
         
-        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+        pathseg_points_list: a list of points (junctions + terminals) that we want to find paths for
 
     Returns:
-        initial_paths: a list containing paths from a starting to ending node pair in endpoints_list
+        initial_paths: a list containing paths from a starting to ending node pair in pathseg_points_list
     """
 
     initial_paths = []
 
-    # for each node in endpoints_list check for a path between the next endpoint
-    for i, node in enumerate(endpoints_list[:-1]):
-        endpoints_sublist = endpoints_list[i+1:]
+    # for each node in pathseg_points_list check for a path between the next point
+    for i, node in enumerate(pathseg_points_list[:-1]):
+        pathseg_points_sublist = pathseg_points_list[i+1:]
 
-        for next_node in endpoints_sublist:
-            neighbors_not_endpoints_list = [node for node in list(graph.neighbors(node)) if node not in endpoints_list]
+        for next_node in pathseg_points_sublist:
+            neighbors_not_points_list = [node for node in list(graph.neighbors(node)) if node not in pathseg_points_list]
             # if the length of this list is 0, then we don't need to check for further paths
             # because there are no possible paths to any other node from the current node
-            if(len(neighbors_not_endpoints_list) == 0):
+            if(len(neighbors_not_points_list) == 0):
                 break
 
             # checking to make sure there is a path saves time
@@ -638,26 +636,26 @@ def get_initial_paths(graph: nxGraph, endpoints_list: list):
                 while(nx.has_path(graph, node, next_node)):
                     shortest_path = list(nx.shortest_path(graph, node, next_node))
                     initial_paths.append(shortest_path)
-                    #if the path consists solely of endpoints, we don't need to check this path again
-                    if(is_subset(shortest_path, endpoints_list)):
+                    #if the path consists solely of path segmentation points, we don't need to check this path again
+                    if(is_subset(shortest_path, pathseg_points_list)):
                         break
 
-                    nodes_to_remove = [node for node in shortest_path if node not in endpoints_list]
+                    nodes_to_remove = [node for node in shortest_path if node not in pathseg_points_list]
                     graph.remove_nodes_from(nodes_to_remove)
 
     return initial_paths, graph
 
 
-def split_path(initial_paths: list, endpoints_list: list) -> list:
+def split_path(initial_paths: list, pathseg_points_list: list) -> list:
     """
     Given a set of initial paths in a graph, we want to extract all "subpaths" from them where
-    paths are split so that they start and end with a path segmentation endpoint.
+    paths are split so that they start and end with a path segmentation point.
     
     Parameters:
         initial_paths: the initial graphs found in a NetworkX graph, from calling nx.all_simple_paths(graph, node1, node2)
-                       for all nodes in endpoints_list
+                       for all nodes in pathseg_points_list
         
-        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+        pathseg_points_list: a list of points (junctions + terminals) that we want to find paths for
 
     Returns:
         split_paths: a unique set of lists in initial_paths
@@ -666,14 +664,14 @@ def split_path(initial_paths: list, endpoints_list: list) -> list:
     split_paths = []
 
     for path in initial_paths:
-        found_endpoints = [node for node in path if node in endpoints_list]
+        found_pathseg_points = [node for node in path if node in pathseg_points_list]
         
-        endpoints_idx = [path.index(endpoint) for endpoint in found_endpoints]
+        pathseg_points_idx = [path.index(pathseg_point) for pathseg_point in found_pathseg_points]
         
         # https://stackoverflow.com/questions/21752610/iterate-every-2-elements-from-list-at-a-time
-        endpoint_combos = [[start, end] for start, end in zip(endpoints_idx[:-1], endpoints_idx[1:])]
+        pathseg_point_combos = [[start, end] for start, end in zip(pathseg_points_idx[:-1], pathseg_points_idx[1:])]
         
-        subpaths = [path[start: end+1] for start, end in endpoint_combos]
+        subpaths = [path[start: end+1] for start, end in pathseg_point_combos]
         
         split_paths.append(subpaths)
 
@@ -707,33 +705,33 @@ def add_cycles(graph: nxGraph, current_paths_list: list) -> list:
     return paths_plus_cycles
 
 
-def segment_paths(graph: nxGraph, endpoints_list: list) -> list:
+def segment_paths(graph: nxGraph, pathseg_points_list: list) -> list:
     """
-    Segment a graph from given list of endpoints. Here, we define endpoints to be:
+    Segment a graph from given list of path segmentation points. Here, we define path segmentation points to be:
     - terminal nodes
     - junction nodes that we have found and filtered via different methods, primarily those that are
         solo (form a T), that branch (form a Y), and that form the base of right triangles
 
-    Since NetworkX defines nodes in a graph from top to bottom, left to right, we take a sorted list (endpoints_list)
+    Since NetworkX defines nodes in a graph from top to bottom, left to right, we take a sorted list (pathseg_points_list)
     and create paths between pairs of nodes starting from least (top-left most) and ending with the highest (bottom-right most).
-    The goal is to get unique paths that span the graph, with each path starting and ending with a node in endpoints_list (continaing no
-    nodes in endpoints_list between them).
+    The goal is to get unique paths that span the graph, with each path starting and ending with a node in pathseg_points_list (continaing no
+    nodes in pathseg_points_list between them).
 
     Parameters:
         graph: a NetworkX graph
         
-        endpoints_list: a list of endpoints (junctions + terminals) that we want to find paths for
+        pathseg_points_list: a list of points (junctions + terminals) that we want to find paths for
 
     Returns:
         final_paths_list: a list of lists containing unique paths in input graph
     """
     # get initial paths list
     # these paths need to be split and there may be cycles to add
-    initial_paths_list, graph = get_initial_paths(graph, endpoints_list)
+    initial_paths_list, graph = get_initial_paths(graph, pathseg_points_list)
 
     # the shortest_path() algorithm produces paths that may contain other sub-paths
-    # so we want to split each path so that it only contains a path_seg_endpoint at the start and end of each path
-    split_paths_list = split_path(initial_paths_list, endpoints_list)
+    # so we want to split each path so that it only contains a pathseg_points_list at the start and end of each path
+    split_paths_list = split_path(initial_paths_list, pathseg_points_list)
     
     # add cycles to paths list, if they exist
     final_paths_list = add_cycles(graph, split_paths_list)
@@ -789,8 +787,8 @@ def TGGLinesPlus(skeleton: np.ndarray) -> dict:
 
     ### PATH SEGMENTATION ####
     # collect junctions and end nodes
-    path_seg_endpoints = sorted(junction_nodes_updated + end_nodes)    
-    paths_list = segment_paths(path_seg_graph, path_seg_endpoints)
+    pathseg_points = sorted(junction_nodes_updated + end_nodes)    
+    paths_list = segment_paths(path_seg_graph, pathseg_points)
     
     stop = timeit.default_timer()
     runtime = stop - start
@@ -802,7 +800,7 @@ def TGGLinesPlus(skeleton: np.ndarray) -> dict:
         "junction_nodes": junction_nodes_updated,
         "node_types": node_types_updated,
         "paths_list": paths_list, 
-        "path_seg_endpoints": path_seg_endpoints, 
+        "pathseg_points": pathseg_points, 
         "removed_edges": edges_to_remove,
         "runtime": runtime,
         "search_by_location": search_by_location,
@@ -826,9 +824,9 @@ def print_stats(result_dict: dict) -> dict:
     """
     num_junctions = len(result_dict["junction_nodes"])
     num_terminals = len(result_dict["end_nodes"])
-    num_pathseg_endpoints = len(result_dict["path_seg_endpoints"])
+    num_pathseg_points = len(result_dict["pathseg_points"])
     num_graph_nodes = len(result_dict["skeleton_graph"].nodes())
-    percent_pathseg_endpoints = num_pathseg_endpoints / num_graph_nodes
+    percent_pathseg_points = num_pathseg_points / num_graph_nodes
 
     num_skeleton_pixels = len(np.where(result_dict["skeleton"] == 1)[0])
     num_image_pixels = result_dict["skeleton"].flatten().shape[0]
@@ -841,17 +839,17 @@ def print_stats(result_dict: dict) -> dict:
     stats_dict["runtime"] = runtime
     stats_dict["num_junctions"] = num_junctions
     stats_dict["num_terminals"] = num_terminals
-    stats_dict["num_pathseg_endpoints"] = num_pathseg_endpoints
+    stats_dict["num_pathseg_points"] = num_pathseg_points
     stats_dict["num_graph_nodes"] = num_graph_nodes
-    stats_dict["percent_pathseg_endpoints"] = percent_pathseg_endpoints
+    stats_dict["percent_pathseg_points"] = percent_pathseg_points
     stats_dict["num_image_pixels"] = num_image_pixels
     stats_dict["percent_skeleton_pixels"] = percent_skeleton_pixels
 
     print("Number of junctions:                      ", num_junctions)
     print("Number of terminal nodes:                 ", num_terminals)
-    print("Number of path segmentation endpoints:    ", num_pathseg_endpoints)
+    print("Number of path segmentation points:    ", num_pathseg_points)
     print("Number of nodes in graph:                 ", num_graph_nodes)
-    print("Path seg endpoints as total node percent: ", np.round(percent_pathseg_endpoints, 3))
+    print("Path seg points as total node percent: ", np.round(percent_pathseg_points, 3))
     print("------------------------------------------")
     print("Number of pixels in image:                ", num_image_pixels)
     print("Skeleton pixels as total image percent:   ", np.round(percent_skeleton_pixels, 3))
