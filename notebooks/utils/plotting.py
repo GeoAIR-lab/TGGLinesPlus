@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 from matplotlib import colors
@@ -298,7 +300,7 @@ def plot_removed_edges(result_dict: dict, label: str = "", node_size:int = 100, 
         else: 
             figtitle = "removed_edges"
 
-        plt.savefig(save_dir+figtitle+".png", format='pdf', dpi=300, bbox_inches='tight')      
+        plt.savefig(save_dir+figtitle+".png", format='png', dpi=300, bbox_inches='tight')      
         # close figure to save on memory if saving many figures at once
         plt.close(fig)
     else:
