@@ -125,7 +125,7 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
     search_by_node = result_dict["search_by_node"]    
     cliques = result_dict["cliques"]
     
-    junction_color = "red"
+    clique_color = "red"
     other_color = "gray"
 
     node_options = {
@@ -150,17 +150,16 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
         "linewidth": 0,
     }
 
-    # get nodes that are junctions and non-junctions
-    junction_locations = list(np.where(np.array(node_types)=="J")[0])
-    other_locations = list(np.where(np.array(node_types)!="J")[0])
+    # get nodes that are part of cliques and then not part of cliques
+    other_nodes = [node for node in graph.nodes() if node not in cliques]
 
     # subset node location dict for each type of node
-    junction_nodes_dict = dict([item for item in search_by_node.items() if item[0] in junction_locations])
-    other_nodes_dict = dict([item for item in search_by_node.items() if item[0] not in junction_locations])
+    cliques_dict = dict([item for item in search_by_node.items() if item[0] in cliques])
+    other_nodes_dict = dict([item for item in search_by_node.items() if item[0] not in cliques])
 
     # reverse node locations for plotting in matplotlib
     node_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in search_by_node.items()])
-    junction_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in junction_nodes_dict.items()])
+    clique_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in cliques_dict.items()])
     other_locations_plotting = dict([(k, [v[1], v[0]]) for (k, v) in other_nodes_dict.items()])
 
     # plot skeleton
@@ -168,15 +167,15 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
     ax.imshow(skeleton, cmap="gray")
 
     # plot nodes by type
-    # non-junction nodes
-    nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=other_locations, node_color=other_color, **node_options)
-    nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(graph, other_locations), edge_color=other_color, **edge_options)
+    # non-clique nodes
+    nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=other_nodes, node_color=other_color, **node_options)
+    nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(graph, other_nodes), edge_color=other_color, **edge_options)
 
-    # junction nodes
+    # nodes in cliques
     if(len(cliques) != 0):
         for i, clique in enumerate(cliques):
-            nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=clique, node_color=junction_color, **node_options)
-            nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(graph, clique), edge_color=junction_color, **edge_options)
+            nx.draw_networkx_nodes(graph, pos=node_locations_plotting, nodelist=clique, node_color=clique_color, **node_options)
+            nx.draw_networkx_edges(graph, pos=node_locations_plotting, edgelist=nx.to_edgelist(graph, clique), edge_color=clique_color, **edge_options)
 
     # add node labels
     if(node_labels):
@@ -184,9 +183,9 @@ def plot_cliques(result_dict: dict, label: str = "", node_size:int = 100, node_l
 
     # plot legend
     if(show_legend):
-        non_junction_label = Line2D(color="gray", markerfacecolor="gray", label='NODE', **legend_options)
+        node_label = Line2D(color="gray", markerfacecolor="gray", label='NODE', **legend_options)
         clique_label = Line2D(color='red', markerfacecolor="red", label='CLIQUE', **legend_options)
-        legend_elements = [non_junction_label, clique_label]
+        legend_elements = [node_label, clique_label]
         ax.legend(handles=legend_elements, bbox_to_anchor=(0.95, 0.95))
     
     plt.axis("off")
