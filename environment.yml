@@ -6,7 +6,9 @@ dependencies:
 - ipython
 - ipykernel
 - matplotlib
+- networkx
 - notebook
 - opencv
 - rasterio
-- scikit-learn
+- scikit-image
+- seaborn
