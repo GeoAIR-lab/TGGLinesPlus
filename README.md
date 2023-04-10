@@ -1,5 +1,5 @@
 # TGGLines-plus
-This is the TGGLines+ repo for our NASA project paper.
+This is the TGGLines+ repo.
 
 ## Resources
 - ...
@@ -31,10 +31,12 @@ conda env export --no-builds | grep -v "prefix" > environment.yml
 
 ## Folders
 ### `data`
-* `mnist`: the original MNIST dataset stored in CVS format and a zip file of the Chinese MNIST dataset
+* `mnist`: the original MNIST dataset stored in CSV format and a zip file of the [[Chinese MNIST]](https://www.kaggle.com/datasets/fedesoriano/chinese-mnist-digit-recognizer) dataset
+* `scikit-image` the [[page]](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.page) and [[retina]](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.retina) ndarrays
 * `rs_imagery`: remote sensing image files
-* `deepcrack`: an image selected from the [[DeepCrack]](https://github.com/yhlleo/DeepCrack) dataset
-* `mass_roads`: an image selected from the [[Massachusetts Roads]](https://www.kaggle.com/datasets/balraj98/massachusetts-roads-dataset) dataset
+* `deepcrack`: image `11215-5.png` selected from the [[DeepCrack]](https://github.com/yhlleo/DeepCrack) dataset
+* `mass_roads`: image `11278840_15.tif` selected from the [[Massachusetts Roads]](https://www.kaggle.com/datasets/balraj98/massachusetts-roads-dataset) dataset
+* `contours`: [[city contours]](https://www.cabq.gov/gis/geographic-information-systems-data) from Albuquerque, NM; the original shapefile was overlaid onto a basemap of the area using QGIS, then exported as a PNG file
 
 ### `notebooks`
 All Jupyter Notebook demos are located here, alongside all of the processing and plotting methods used in a folder called `utils/`.
