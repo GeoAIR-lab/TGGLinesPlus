@@ -30,7 +30,7 @@ conda env export --no-builds | grep -v "prefix" > environment.yml
 
 ## Folders
 ### `data`
-* `mnist`: the original [MNIST dataset stored in CSV format](https://www.kaggle.com/datasets/oddrationale/mnist-in-csv){:target="_blank"} and a zip file of the [Chinese MNIST](https://www.kaggle.com/datasets/fedesoriano/chinese-mnist-digit-recognizer){:target="_blank"} dataset
+* `mnist`: the original [MNIST dataset stored in CSV format](https://www.kaggle.com/datasets/oddrationale/mnist-in-csv){:target="_blank" rel="noopener"} and a zip file of the [Chinese MNIST](https://www.kaggle.com/datasets/fedesoriano/chinese-mnist-digit-recognizer){:target="_blank"} dataset
 * `scikit-image` the [[page]](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.page) and [[retina]](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.retina) ndarrays
 * `rs_imagery`: remote sensing image files
 * `deepcrack`: image `11215-5.png` selected from the [[DeepCrack]](https://github.com/yhlleo/DeepCrack) dataset
