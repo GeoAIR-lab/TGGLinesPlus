@@ -1,5 +1,5 @@
-## citing paper
-This is the open-sourced Python implementation of the TGGLinesPlus algorithm. detailed about the algirhtm is available in the paper, entitled
+## Citing paper
+This is the open-sourced Python implementation of the TGGLinesPlus algorithm. details about the algirhtm is available in the  paper entitled
 "TGGLinesPlus: A robust topological graph-guided computer vision algorithm for line detection from images" (arxiv version).
 
 
