@@ -1,7 +1,14 @@
-## Citing paper
-This is the open-sourced Python implementation of the TGGLinesPlus algorithm. details about the algirhtm is available in the  paper entitled
-"TGGLinesPlus: A robust topological graph-guided computer vision algorithm for line detection from images" (arxiv version).
 
+
+## About TGGLinesPlus
+TGGLinesPlus is a free, open-sourced Python implementation of the TGGLinesPlus algorithm for line detection from images released by the GeoAIR Lab (https://geoair.lipingyang.org/). 
+Many problems can be moved forward through TGGLinesPlus, including but not limited to the following: advanced optical character recognition (OCR) techniques (it is very promising, see the results of document recognition in Figure 7), road lane line extraction for real-time autonomous driving, concrete cracks analysis in structural engineering, AutoCAD map vectorization, contour map digitalization, medical image processing and analysis, in addition to feature extraction for machine learning algorithms.
+
+### TGGLinesPlus paper
+TGGLinesPlus algorithm is detailed in the paper, titled "TGGLinesPlus: A robust topological graph-guided computer vision algorithm for line detection from images".
+
+## Copyright
+TGGLinesPlus Python implementation is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See the file COPYING in this directory or http://www.gnu.org/licenses/, for a description of the GNU General Public License terms under which you can copy the files.
 
 ## Files
 * `.gitignore`
